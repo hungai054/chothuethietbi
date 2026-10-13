@@ -13,7 +13,11 @@
     "lint": "eslint packages apps extensions --no-error-on-unmatched-pattern",
     "test": "turbo run test",
     "e2e": "pnpm --filter @rentpro/web build && pnpm --filter @rentpro/admin build && pnpm --filter @rentpro/e2e e2e",
-    "db:reset": "pnpm --filter @rentpro/db reset"
+    "db:reset": "pnpm --filter @rentpro/db reset",
+    "dev:web": "pnpm --filter @rentpro/web dev",
+    "dev:admin": "pnpm --filter @rentpro/admin dev",
+    "db:migrate": "pnpm --filter @rentpro/db migrate",
+    "admin:reset-totp": "pnpm --filter @rentpro/db reset-totp"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

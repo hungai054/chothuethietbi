@@ -12,7 +12,8 @@
     "test": "vitest run",
     "reset": "tsx src/cli.ts reset",
     "migrate": "tsx src/migrate-cli.ts",
-    "dev:pg": "tsx src/cli.ts dev-pg"
+    "dev:pg": "tsx src/cli.ts dev-pg",
+    "reset-totp": "tsx src/reset-totp.ts"
   },
   "dependencies": {
     "pg": "^8.13.0",

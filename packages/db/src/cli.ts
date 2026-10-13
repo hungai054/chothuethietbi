@@ -2,9 +2,11 @@ import EmbeddedPostgres from 'embedded-postgres';
 import { existsSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import pg from 'pg';
+import { loadRootEnv } from './env';
 import { migrate } from './migrate';
 import { seed } from './seed';
 
+loadRootEnv();
 const ROOT = resolve(import.meta.dirname, '../../..');
 const DATA = resolve(ROOT, '.data/pg');
 const PORT = Number(process.env.PG_PORT ?? 5432);
