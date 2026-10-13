@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 // Dùng Chrome cài sẵn trên máy (channel) nên không phải tải trình duyệt riêng.
 export default defineConfig({
+  globalSetup: './global-setup.ts',
   testDir: './tests',
   timeout: 30_000,
   fullyParallel: false,

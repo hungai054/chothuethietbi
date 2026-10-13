@@ -47,7 +47,8 @@ export async function startTestDb(port = 54329): Promise<TestDb> {
     platformUrl = `postgresql://rentpro_admin:rentpro_admin@localhost:${port}/rentpro_test`;
     stopFn = async () => {
       await server.stop();
-      rmSync(dir, { recursive: true, force: true });
+      // Windows có thể còn giữ khóa file vài trăm ms sau khi dừng server; thư mục tạm không đáng làm hỏng test.
+      try { rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch { /* bỏ qua */ }
     };
   }
   await migrate(adminUrl);

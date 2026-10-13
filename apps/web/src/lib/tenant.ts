@@ -47,8 +47,15 @@ export async function tenantFromHost(host: string): Promise<TenantInfo | null> {
   });
 }
 
+/**
+ * Host thật của request. Khi Next dựng lại trang đích sau một server action (redirect), header `host` bị đổi thành
+ * localhost:PORT còn host gốc nằm ở `x-forwarded-host`; sau reverse proxy cũng vậy. Cookie phiên gắn theo host và
+ * dữ liệu vẫn bị chặn bởi kiểm tra tenantId của phiên, nên việc tin header này không mở thêm đường truy cập.
+ */
+export const hostOf = (h: { get(name: string): string | null }) => h.get('x-forwarded-host')?.split(',')[0]?.trim() || h.get('host') || '';
+
 /** Tenant của request hiện tại (cache trong một request). */
 export const getTenant = cache(async (): Promise<TenantInfo | null> => {
   const h = await headers();
-  return tenantFromHost(h.get('host') ?? '');
+  return tenantFromHost(hostOf(h));
 });

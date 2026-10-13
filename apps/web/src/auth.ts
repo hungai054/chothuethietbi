@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { hashPassword, verifyPassword, verifyToken, type TenantRole } from '@rentpro/core';
 import { withTenantId } from '@rentpro/db';
 import { pool } from './lib/db';
-import { tenantFromHost } from './lib/tenant';
+import { hostOf, tenantFromHost } from './lib/tenant';
 
 const schema = z.object({ email: z.string().email(), password: z.string().min(1) });
 
@@ -20,7 +20,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(raw, request) {
         const parsed = schema.safeParse(raw);
         if (!parsed.success) return null;
-        const tenant = await tenantFromHost(request.headers.get('host') ?? '');
+        const tenant = await tenantFromHost(hostOf(request.headers));
         if (!tenant || tenant.status === 'SUSPENDED' || tenant.status === 'DELETED') return null;
         const user = await withTenantId(pool(), tenant.id, async (db) =>
           (await db.query('SELECT id, name, email, password_hash, role, active FROM app_user WHERE email = $1', [parsed.data.email.toLowerCase()])).rows[0],
@@ -38,7 +38,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const token = typeof raw?.token === 'string' ? raw.token : '';
         const claims = secret ? verifyToken<{ sid: string; tid: string }>(token, secret) : null;
         if (!claims) return null;
-        const tenant = await tenantFromHost(request.headers.get('host') ?? '');
+        const tenant = await tenantFromHost(hostOf(request.headers));
         if (!tenant || tenant.id !== claims.tid || tenant.status === 'DELETED') return null;
         const row = await withTenantId(pool(), tenant.id, async (db) =>
           (await db.query('SELECT id, platform_user_email FROM support_access WHERE id=$1 AND ended_at IS NULL AND expires_at > now()', [claims.sid])).rows[0],

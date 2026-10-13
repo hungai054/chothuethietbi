@@ -345,3 +345,21 @@ export async function closeStocktake(ctx: ServiceCtx, stocktakeId: string) {
   if (!r.rowCount) throw new ValidationError('Đợt kiểm kê không tồn tại hoặc đã đóng.');
   await audit(ctx, 'stocktake.close', 'stocktake', stocktakeId);
 }
+
+export async function listBranches(ctx: ServiceCtx): Promise<{ id: string; name: string }[]> {
+  guard(ctx, 'inventory.view', 'inventory');
+  return (await ctx.db.query('SELECT id, name FROM branch WHERE deleted_at IS NULL ORDER BY name')).rows;
+}
+
+export async function listCategoriesFlat(ctx: ServiceCtx): Promise<{ id: string; name: string }[]> {
+  guard(ctx, 'inventory.view', 'inventory');
+  return (await ctx.db.query('SELECT id, name FROM category WHERE deleted_at IS NULL ORDER BY name')).rows;
+}
+
+export async function listStocktakes(ctx: ServiceCtx) {
+  guard(ctx, 'inventory.stocktake', 'inventory.stocktake');
+  return (await ctx.db.query(
+    `SELECT s.id, s.name, s.status, s.created_at, b.name AS branch_name, (SELECT count(*)::int FROM stocktake_scan x WHERE x.stocktake_id = s.id) AS scans
+     FROM stocktake s LEFT JOIN branch b ON b.id = s.branch_id ORDER BY s.created_at DESC LIMIT 50`)).rows as
+    { id: string; name: string; status: string; created_at: Date; branch_name: string | null; scans: number }[];
+}

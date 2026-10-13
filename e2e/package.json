@@ -10,5 +10,12 @@
     "test": "echo skip (chạy: pnpm e2e)",
     "e2e": "playwright test"
   },
-  "devDependencies": { "@playwright/test": "^1.52.0" }
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@rentpro/core": "workspace:*",
+    "@rentpro/db": "workspace:*",
+    "exceljs": "^4.4.0",
+    "pg": "^8.13.0",
+    "@types/pg": "^8.11.0"
+  }
 }
