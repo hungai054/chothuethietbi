@@ -1,9 +1,15 @@
 import { redirect } from 'next/navigation';
 import { ForbiddenError, InvalidTransitionError } from '@rentpro/core';
-import { NotFoundError, ReadOnlyError, ValidationError, withTenantId, type ServiceCtx } from '@rentpro/db';
-import { FeatureDisabledError, LimitExceededError } from '@rentpro/tenancy';
+import { resolve } from 'node:path';
+import { LocalFsStorage, NotFoundError, ReadOnlyError, ValidationError, withTenantId, type ServiceCtx } from '@rentpro/db';
+import { FeatureDisabledError, LimitExceededError, keyRingFromEnv } from '@rentpro/tenancy';
 import { pool } from './db';
 import { requireAppSession, type AppSession } from './session';
+
+const g = globalThis as unknown as { __storage?: LocalFsStorage; __ring?: ReturnType<typeof keyRingFromEnv> };
+// Thư mục lưu ảnh giấy tờ nằm NGOÀI thư mục public của web; production thay bằng adapter S3-compatible.
+const storage = () => (g.__storage ??= new LocalFsStorage(process.env.STORAGE_DIR ?? resolve(process.cwd(), '../../.data/storage')));
+const keyRing = () => (g.__ring ??= keyRingFromEnv());
 
 /** Chạy một thao tác nghiệp vụ trong transaction của tenant hiện tại, với quyền/gói của người đăng nhập. */
 export async function withService<T>(fn: (ctx: ServiceCtx, session: AppSession) => Promise<T>): Promise<T> {
@@ -12,6 +18,7 @@ export async function withService<T>(fn: (ctx: ServiceCtx, session: AppSession) 
     fn({
       db, tenantId: s.tenant.id, tenantStatus: s.tenant.status, userId: s.support ? null : s.user.id,
       permissions: s.permissions, features: s.tenant.features, limits: s.tenant.limits,
+      timezone: s.tenant.timezone, keyRing: keyRing(), storage: storage(),
     }, s),
   );
 }

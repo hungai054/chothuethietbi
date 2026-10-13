@@ -181,12 +181,17 @@ describe('trạng thái thiết bị', () => {
       run(id, {}, (c) => transitionUnit(c, u!.id, 'MAINTENANCE', { reason: 'a' })),
       run(id, {}, (c) => transitionUnit(c, u!.id, 'LOST', { reason: 'b' })),
     ]);
-    // Cả hai đều hợp lệ từ AVAILABLE nhưng sau khi cái đầu xong, MAINTENANCE→LOST vẫn hợp lệ; lịch sử phải nhất quán.
+    // Khóa hàng buộc hai thao tác chạy lần lượt, thứ tự không đoán trước được:
+    //  - Bảo trì rồi Mất: cả hai hợp lệ.  - Mất rồi Bảo trì: thao tác thứ hai bị từ chối (Mất → Bảo trì không hợp lệ).
+    // Dù thứ tự nào, lịch sử phải liền mạch và trạng thái cuối khớp lịch sử (không bao giờ ghi đè nhau).
     const { unit, history } = await run(id, {}, (c) => getUnitDetail(c, u!.id));
-    expect(r.every((x) => x.status === 'fulfilled')).toBe(true);
-    expect(history.length).toBe(3);
+    const fulfilled = r.filter((x) => x.status === 'fulfilled').length;
+    const rejected = r.filter((x): x is PromiseRejectedResult => x.status === 'rejected');
+    expect(fulfilled).toBeGreaterThanOrEqual(1);
+    for (const x of rejected) expect(x.reason).toBeInstanceOf(InvalidTransitionError);
+    expect(history.length).toBe(1 + fulfilled);
     expect(history[0]!.to_status).toBe(unit.status);
-    expect(history[0]!.from_status).toBe(history[1]!.to_status);
+    for (let i = 0; i < history.length - 1; i++) expect(history[i]!.from_status).toBe(history[i + 1]!.to_status);
   });
 
   it('nhật ký trạng thái chỉ thêm: app role không sửa/xóa được', async () => {

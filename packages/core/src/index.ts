@@ -11,3 +11,4 @@ export * from './inventory/labels';
 export * from './pricing/engine';
 export * from './customers/customer';
 export * from './settings/pricing-settings';
+export * from './time';

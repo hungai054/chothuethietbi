@@ -11,6 +11,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     { href: '/', label: 'Tổng quan', show: true },
     { href: '/inventory', label: 'Thiết bị', show: tenant.features.inventory && permissions.has('inventory.view') },
     { href: '/inventory/models', label: 'Mẫu thiết bị', show: tenant.features.inventory && permissions.has('inventory.view') },
+    { href: '/customers', label: 'Khách hàng', show: tenant.features.customers && permissions.has('customer.view') },
+    { href: '/pricing', label: 'Bảng giá', show: tenant.features.pricing && permissions.has('pricing.view') },
     { href: '/inventory/scan', label: 'Quét mã', show: tenant.features['inventory.barcode'] && permissions.has('inventory.view') },
     { href: '/inventory/stocktake', label: 'Kiểm kê', show: tenant.features['inventory.stocktake'] && permissions.has('inventory.stocktake') },
   ].filter((l) => l.show);

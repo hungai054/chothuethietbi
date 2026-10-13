@@ -5,7 +5,7 @@ import { FEATURE_KEYS, type FeatureKey } from '@rentpro/tenancy';
 export const DEMO_PASSWORD = 'Demo@12345678';
 
 const only = (keys: FeatureKey[]) => Object.fromEntries(keys.map((k) => [k, true]));
-const BASIC: FeatureKey[] = ['inventory', 'inventory.barcode', 'inventory.stocktake', 'booking', 'contract', 'deposit', 'pricing', 'payments', 'notify.email', 'maintenance', 'reports.basic'];
+const BASIC: FeatureKey[] = ['inventory', 'customers', 'inventory.barcode', 'inventory.stocktake', 'booking', 'contract', 'deposit', 'pricing', 'payments', 'notify.email', 'maintenance', 'reports.basic'];
 const PRO: FeatureKey[] = [...BASIC, 'booking.timeline', 'notify.sms', 'notify.zalo', 'maintenance.usage_based', 'reports.advanced', 'reports.roi', 'custom_fields', 'multi_branch', 'contract.e_signature'];
 const ENT: FeatureKey[] = [...FEATURE_KEYS];
 

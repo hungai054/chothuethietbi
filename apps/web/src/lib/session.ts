@@ -44,3 +44,11 @@ export async function requireAppSession(): Promise<AppSession> {
   if (!s) redirect('/login');
   return s;
 }
+
+/** Chặn truy cập trang khi thiếu tính năng của gói hoặc thiếu quyền; người dùng được đưa về trang chủ với thông báo rõ ràng. */
+export async function requireAccess(feature: keyof AppSession['tenant']['features'], perm: Permission): Promise<AppSession> {
+  const s = await requireAppSession();
+  if (!s.tenant.features[feature]) redirect('/?error=' + encodeURIComponent('Gói hiện tại chưa có tính năng này.'));
+  if (!s.permissions.has(perm)) redirect('/?error=' + encodeURIComponent('Bạn không có quyền truy cập mục này.'));
+  return s;
+}

@@ -10,6 +10,7 @@
  */
 
 export type RentalUnit = 'hour' | 'day' | 'week' | 'month';
+export const UNIT_LABEL: Record<RentalUnit, string> = { hour: 'giờ', day: 'ngày', week: 'tuần', month: 'tháng' };
 export interface PriceRule { hour: number | null; day: number | null; week: number | null; month: number | null; minHours: number }
 
 export interface PricingConfig {

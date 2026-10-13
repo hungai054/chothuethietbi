@@ -1,15 +1,18 @@
 import { requireAppSession } from '@/lib/session';
 import { withService } from '@/lib/service';
 import { equipmentUsage } from '@rentpro/db';
+import { Notice } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
   const { tenant, user, permissions } = await requireAppSession();
   const usage = tenant.features.inventory ? await withService((c) => equipmentUsage(c)) : null;
   const features = Object.entries(tenant.features).filter(([, v]) => v).map(([k]) => k);
   return (
     <div>
+      <Notice error={error} />
       <h1 className="text-2xl font-semibold">{tenant.name}</h1>
       <p className="mt-2 text-slate-600">{user.name} · {user.role} · {permissions.size} quyền</p>
       {usage && (
