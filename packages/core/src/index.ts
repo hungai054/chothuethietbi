@@ -8,3 +8,4 @@ export * from './inventory/barcode';
 export * from './inventory/stocktake';
 export * from './inventory/excel';
 export * from './inventory/labels';
+export * from './pricing/engine';
