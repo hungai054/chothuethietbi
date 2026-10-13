@@ -11,5 +11,11 @@
     "lint": "echo skip",
     "test": "vitest run"
   },
-  "dependencies": { "@node-rs/argon2": "^2.0.2", "@rentpro/tenancy": "workspace:*", "zod": "^3.24.0" }
+  "dependencies": {
+    "@node-rs/argon2": "^2.0.2",
+    "@rentpro/tenancy": "workspace:*",
+    "zod": "^3.24.0",
+    "exceljs": "^4.4.0",
+    "bwip-js": "^4.5.0"
+  }
 }

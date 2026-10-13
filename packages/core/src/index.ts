@@ -3,3 +3,8 @@ export * from './auth/password';
 export * from './auth/totp';
 export * from './auth/signed';
 export * from './auth/impersonation';
+export * from './inventory/state-machine';
+export * from './inventory/barcode';
+export * from './inventory/stocktake';
+export * from './inventory/excel';
+export * from './inventory/labels';
