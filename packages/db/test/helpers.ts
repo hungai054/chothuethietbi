@@ -18,7 +18,25 @@ export async function startTestDb(port = 54329): Promise<TestDb> {
   let adminUrl = process.env.TEST_DATABASE_ADMIN_URL;
   let appUrl = process.env.TEST_DATABASE_URL;
   let platformUrl = process.env.TEST_DATABASE_PLATFORM_URL;
-  if (!adminUrl) {
+  const server = process.env.TEST_PG_SERVER_URL; // superuser URL tới server có sẵn; mỗi lần chạy tạo DB riêng rồi xoá
+  if (!adminUrl && server) {
+    const name = `rentpro_test_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+    const root = new pg.Client({ connectionString: server });
+    await root.connect();
+    await root.query(`CREATE DATABASE ${name} ENCODING 'UTF8'`);
+    await root.end();
+    const u = new URL(server);
+    const withDb = (user: string, pass: string) => { const x = new URL(server); x.username = user; x.password = pass; x.pathname = '/' + name; return x.toString(); };
+    adminUrl = withDb(decodeURIComponent(u.username), decodeURIComponent(u.password));
+    appUrl = withDb('rentpro_app', 'rentpro_app');
+    platformUrl = withDb('rentpro_admin', 'rentpro_admin');
+    stopFn = async () => {
+      const r = new pg.Client({ connectionString: server });
+      await r.connect();
+      await r.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+      await r.end();
+    };
+  } else if (!adminUrl) {
     const dir = mkdtempSync(join(tmpdir(), 'rentpro-pg-'));
     const server = new EmbeddedPostgres({ databaseDir: dir, user: 'postgres', password: 'postgres', port, persistent: false, initdbFlags: ['--encoding=UTF8', '--locale=C'] });
     await server.initialise();

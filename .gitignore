@@ -6,3 +6,5 @@ dist
 *.log
 .data
 .env.local
+mat khau va port postgres.txt
+*.txt.secret
