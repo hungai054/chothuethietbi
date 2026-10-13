@@ -1,8 +1,7 @@
-import {
-  ForbiddenError, type Permission,
-} from '@rentpro/core';
-import { assertCan, type FeatureKey, type Limits, type ResolvedFeatures } from '@rentpro/tenancy';
+import { ForbiddenError, type Permission, type PricingHook } from '@rentpro/core';
+import { assertCan, type FeatureKey, type KeyRing, type Limits, type ResolvedFeatures } from '@rentpro/tenancy';
 import type { Db } from './client';
+import type { StorageAdapter } from './storage';
 
 /** Mọi service nghiệp vụ nhận ngữ cảnh này: kiểm tra quyền, gói và chế độ chỉ đọc ở đây, không chỉ ở UI. */
 export interface ServiceCtx {
@@ -14,6 +13,14 @@ export interface ServiceCtx {
   features: ResolvedFeatures;
   limits: Limits;
   barcodePattern?: string;
+  /** Múi giờ của cửa hàng (mặc định Asia/Ho_Chi_Minh) */
+  timezone?: string;
+  /** Khóa mã hóa dữ liệu nhạy cảm (số giấy tờ). Bắt buộc với các thao tác giấy tờ tùy thân. */
+  keyRing?: KeyRing;
+  /** Nơi lưu ảnh giấy tờ (riêng tư). */
+  storage?: StorageAdapter;
+  /** Quy tắc giá riêng của extension (nếu tenant bật). */
+  pricingHook?: PricingHook;
 }
 
 export class ReadOnlyError extends Error {
@@ -47,4 +54,9 @@ export async function audit(ctx: ServiceCtx, action: string, entity: string, ent
   await ctx.db.query('INSERT INTO audit_log(tenant_id,user_id,action,entity,entity_id,data) VALUES ($1,$2,$3,$4,$5,$6)', [
     ctx.tenantId, ctx.userId, action, entity, entityId, JSON.stringify(data),
   ]);
+}
+
+export function need<T>(v: T | undefined, what: string): T {
+  if (v === undefined) throw new Error(`Thiếu cấu hình hệ thống: ${what}`);
+  return v;
 }

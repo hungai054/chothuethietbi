@@ -1,5 +1,6 @@
 export const FEATURE_KEYS = [
   'inventory', 'inventory.barcode', 'inventory.stocktake',
+  'customers',
   'booking', 'booking.timeline',
   'contract', 'contract.e_signature', 'deposit',
   'pricing', 'payments',
