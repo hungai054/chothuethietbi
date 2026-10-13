@@ -12,3 +12,4 @@ mat khau va port postgres.txt
 *.msi
 test-results
 playwright-report
+*.tsbuildinfo
