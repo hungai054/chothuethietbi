@@ -12,6 +12,7 @@
     "typecheck": "turbo run typecheck",
     "lint": "eslint packages apps extensions --no-error-on-unmatched-pattern",
     "test": "turbo run test",
+    "e2e": "pnpm --filter @rentpro/web build && pnpm --filter @rentpro/admin build && pnpm --filter @rentpro/e2e e2e",
     "db:reset": "pnpm --filter @rentpro/db reset"
   },
   "devDependencies": {

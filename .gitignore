@@ -10,3 +10,5 @@ mat khau va port postgres.txt
 *.txt.secret
 *.exe
 *.msi
+test-results
+playwright-report

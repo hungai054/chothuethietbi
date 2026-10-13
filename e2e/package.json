@@ -1,0 +1,14 @@
+{
+  "name": "@rentpro/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo skip",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo skip",
+    "test": "echo skip (chạy: pnpm e2e)",
+    "e2e": "playwright test"
+  },
+  "devDependencies": { "@playwright/test": "^1.52.0" }
+}

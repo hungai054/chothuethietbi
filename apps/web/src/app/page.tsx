@@ -1,4 +1,4 @@
-import { signOut } from '@/auth';
+import { SignOutButton } from './sign-out-button';
 import { requireAppSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -17,9 +17,7 @@ export default async function Home() {
       <main className="mx-auto max-w-3xl p-8">
         <header className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">{tenant.name}</h1>
-          <form action={async () => { 'use server'; await signOut({ redirectTo: '/login' }); }}>
-            <button className="text-sm text-slate-600 underline">Đăng xuất</button>
-          </form>
+          <SignOutButton />
         </header>
         <p className="mt-2 text-slate-600">{user.name} · {user.role} · {permissions.size} quyền</p>
         <h2 className="mt-6 font-medium">Tính năng theo gói ({features.length})</h2>
