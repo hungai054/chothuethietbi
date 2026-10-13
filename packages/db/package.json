@@ -13,6 +13,6 @@
     "reset": "tsx src/cli.ts reset",
     "dev:pg": "tsx src/cli.ts dev-pg"
   },
-  "dependencies": { "pg": "^8.13.0", "@rentpro/tenancy": "workspace:*" },
+  "dependencies": { "pg": "^8.13.0", "@rentpro/tenancy": "workspace:*", "@rentpro/core": "workspace:*" },
   "devDependencies": { "embedded-postgres": "^18.0.0-beta.1", "@types/pg": "^8.11.0", "tsx": "^4.19.0" }
 }
