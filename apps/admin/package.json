@@ -1,0 +1,29 @@
+{
+  "name": "@rentpro/admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo skip",
+    "test": "echo skip"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.0.2",
+    "@rentpro/core": "workspace:*",
+    "@rentpro/db": "workspace:*",
+    "@rentpro/tenancy": "workspace:*",
+    "next": "^15.3.0",
+    "pg": "^8.13.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tailwindcss": "^4.1.0"
+  }
+}

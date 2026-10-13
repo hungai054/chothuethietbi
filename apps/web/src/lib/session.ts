@@ -1,0 +1,46 @@
+import { redirect } from 'next/navigation';
+import { IMPERSONATION_PERMISSIONS, permissionsFor, type Permission } from '@rentpro/core';
+import { withTenantId } from '@rentpro/db';
+import { auth } from '@/auth';
+import { pool } from './db';
+import { getTenant, type TenantInfo } from './tenant';
+
+export interface SupportInfo { by: string; expiresAt: Date }
+export interface AppSession {
+  tenant: TenantInfo;
+  user: { id: string; name: string; role: string };
+  permissions: ReadonlySet<Permission>;
+  support: SupportInfo | null;
+}
+
+/** Phiên hợp lệ cho tenant của request này, hoặc null. Phiên hỗ trợ được kiểm tra lại trong DB mỗi lần. */
+export async function getAppSession(): Promise<AppSession | null> {
+  const tenant = await getTenant();
+  const session = await auth();
+  if (!tenant || !session || session.user.tenantId !== tenant.id) return null;
+  const sid = session.user.supportAccessId;
+  if (sid) {
+    const row = await withTenantId(pool(), tenant.id, async (db) =>
+      (await db.query('SELECT platform_user_email, expires_at FROM support_access WHERE id=$1 AND ended_at IS NULL AND expires_at > now()', [sid])).rows[0],
+    );
+    if (!row) return null;
+    return {
+      tenant,
+      user: { id: session.user.id, name: session.user.name ?? 'Hỗ trợ', role: session.user.role },
+      permissions: new Set(IMPERSONATION_PERMISSIONS),
+      support: { by: row.platform_user_email, expiresAt: row.expires_at },
+    };
+  }
+  return {
+    tenant,
+    user: { id: session.user.id, name: session.user.name ?? '', role: session.user.role },
+    permissions: permissionsFor(session.user.role),
+    support: null,
+  };
+}
+
+export async function requireAppSession(): Promise<AppSession> {
+  const s = await getAppSession();
+  if (!s) redirect('/login');
+  return s;
+}
