@@ -2,6 +2,16 @@
 
 Yêu cầu: Node 20+, pnpm, PostgreSQL 16+ đang chạy (máy này: cổng 5433). Không cần Docker.
 
+## 0. Cài pnpm (nếu gõ `pnpm -v` báo "not recognized")
+
+PowerShell mặc định của Windows chặn script `.ps1` nên dùng bản `.cmd`. Mở **Windows PowerShell** hoặc **Command Prompt** (không dùng terminal Laragon) và chạy:
+
+```bash
+npm.cmd install -g pnpm
+```
+
+Đóng terminal, mở lại, kiểm tra `pnpm.cmd -v` (phải ra `12.x`). Nếu terminal vẫn không thấy pnpm (do mở trước khi cài), dùng script có sẵn ở bước 2 — nó tự nạp lại PATH.
+
 ## 1. Chuẩn bị (làm một lần)
 
 File `.env` ở gốc repo (không commit) cần có:
@@ -22,6 +32,17 @@ pnpm db:migrate        # tạo bảng + nạp gói, tài khoản và dữ liệu
 pnpm dev:web      # cửa hàng   → http://demo.localhost:3000
 pnpm dev:admin    # quản trị   → http://localhost:3001
 ```
+
+Nếu báo lỗi `pnpm` hoặc "running scripts is disabled", dùng script thay thế (tự nạp PATH, bỏ qua chính sách PowerShell):
+
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev.ps1 web
+```
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev.ps1 admin
+```
+
+Trong Command Prompt/Cmder có thể gõ ngắn hơn: `scripts\dev web` và `scripts\dev admin`.
 
 Lần đầu mỗi trang biên dịch mất vài giây. Dùng Chrome hoặc Edge: tên miền `*.localhost` tự trỏ về máy bạn, không cần sửa file hosts.
 
@@ -74,5 +95,6 @@ pnpm e2e           # build web + admin rồi chạy Playwright bằng Chrome có
 | Lỗi kết nối DB / `readyz` 503 | Kiểm tra PostgreSQL chạy ở cổng 5433, `.env` đúng mật khẩu |
 | `Thiếu DATABASE_ADMIN_URL` | Tạo file `.env` ở gốc repo như mục 1 |
 | `Thiếu MASTER_KEY` khi chạy bản build | Chỉ xảy ra ở chế độ production. Đặt `MASTER_KEY` (`openssl rand -base64 32`). Chế độ dev dùng khóa dev kèm cảnh báo |
+| `pnpm` not recognized / running scripts is disabled | Xem mục 0 và dùng `scripts\dev.ps1` |
 | Cổng 3000/3001 bận | Tắt tiến trình cũ (`Get-NetTCPConnection -LocalPort 3000`) |
 | Muốn làm lại dữ liệu từ đầu | `pnpm db:reset` (xóa sạch database `rentpro` rồi tạo lại) |
