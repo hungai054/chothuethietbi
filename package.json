@@ -1,21 +1,26 @@
 {
   "name": "rentpro",
   "private": true,
+  "type": "module",
   "version": "0.1.0",
   "packageManager": "pnpm@12.11.2",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint",
+    "lint": "eslint packages apps extensions --no-error-on-unmatched-pattern",
     "test": "turbo run test",
     "db:reset": "pnpm --filter @rentpro/db reset"
   },
   "devDependencies": {
-    "turbo": "^2.5.0",
-    "typescript": "^5.8.0",
-    "vitest": "^3.1.0",
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/parser": "^8.71.1",
     "eslint": "^9.20.0",
-    "@types/node": "^22.0.0"
+    "turbo": "^2.5.0",
+    "@rentpro/config": "workspace:*",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
   }
 }
