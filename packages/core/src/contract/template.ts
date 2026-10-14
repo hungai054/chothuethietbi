@@ -23,6 +23,8 @@ export interface ContractContent {
   terms: string[];
 }
 
+export const DEFAULT_CONTRACT_PATTERN = 'HD-{year}-{seq:5}';
+
 export const DEFAULT_TERMS: readonly string[] = [
   'Bên B nhận thiết bị trong tình trạng đã được hai bên kiểm tra và ghi nhận trong biên bản giao nhận; chịu trách nhiệm bảo quản thiết bị trong suốt thời gian thuê.',
   'Bên B trả thiết bị đúng hạn, đầy đủ phụ kiện. Trả trễ quá thời gian ân hạn, Bên B chịu phí trễ hạn theo bảng phí của Bên A.',

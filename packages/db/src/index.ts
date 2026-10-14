@@ -8,3 +8,6 @@ export * from './pricing';
 export * from './storage';
 export * from './booking';
 export * from './booking-queries';
+export * from './finance';
+export * from './contract';
+export * from './handover';

@@ -6,6 +6,7 @@ import {
 } from '@rentpro/core';
 import { NotFoundError, ValidationError, audit, guard, type ServiceCtx } from './service';
 import { loadPricingConfig, quoteForCustomer, type PricingInput } from './pricing';
+import { syncDepositRequirement } from './finance';
 
 const FEATURE = 'booking' as const;
 export const ACTIVE_ALLOC = ['HOLD', 'CONFIRMED', 'ACTIVE', 'MAINTENANCE'] as const;
@@ -112,7 +113,7 @@ const logStatus = (ctx: ServiceCtx, bookingId: string, from: string | null, to: 
   ctx.db.query('INSERT INTO booking_status_log(tenant_id,booking_id,from_status,to_status,user_id,reason) VALUES ($1,$2,$3,$4,$5,$6)',
     [ctx.tenantId, bookingId, from, to, ctx.userId, reason ?? null]);
 
-async function lockBooking(ctx: ServiceCtx, id: string): Promise<Row> {
+export async function lockBooking(ctx: ServiceCtx, id: string): Promise<Row> {
   const b = (await ctx.db.query('SELECT * FROM booking WHERE id=$1 AND deleted_at IS NULL FOR UPDATE', [id])).rows[0];
   if (!b) throw new NotFoundError('đơn thuê');
   return b;
@@ -264,6 +265,7 @@ export async function createBooking(ctx: ServiceCtx, input: CreateBookingInput):
   // Cấp số đơn ở cuối để khóa bộ đếm được giữ ngắn nhất có thể
   const code = await nextBookingCode(ctx);
   await ctx.db.query('UPDATE booking SET code=$2 WHERE id=$1', [b.id, code]);
+  await syncDepositRequirement(ctx, b.id);
   await logStatus(ctx, b.id, null, status);
   await audit(ctx, 'booking.create', 'booking', b.id, { code, status, total: qr.quote.total });
   return { id: b.id, code };
@@ -289,6 +291,7 @@ export async function holdBooking(ctx: ServiceCtx, id: string, hours?: number): 
   await allocateExisting(ctx, b, 'HOLD');
   const h = hours ?? (await rawSettings(ctx)).holdHours ?? DEFAULT_HOLD_HOURS;
   await ctx.db.query(`UPDATE booking SET status='HOLD', hold_expires_at=$2 WHERE id=$1`, [id, holdExpiry(new Date(), h)]);
+  await syncDepositRequirement(ctx, id);
   await logStatus(ctx, id, b.status, 'HOLD');
   await audit(ctx, 'booking.hold', 'booking', id);
 }
@@ -306,6 +309,7 @@ export async function confirmBooking(ctx: ServiceCtx, id: string): Promise<void>
     await ctx.db.query(`UPDATE qty_allocation SET status='CONFIRMED' WHERE booking_id=$1 AND status='HOLD'`, [id]);
   }
   await ctx.db.query(`UPDATE booking SET status='CONFIRMED', hold_expires_at=NULL, confirmed_at=now() WHERE id=$1`, [id]);
+  await syncDepositRequirement(ctx, id);
   await logStatus(ctx, id, b.status, 'CONFIRMED');
   await audit(ctx, 'booking.confirm', 'booking', id);
 }
@@ -317,6 +321,7 @@ export async function cancelBooking(ctx: ServiceCtx, id: string, reason: string)
   assertBookingTransition(b.status, 'CANCELLED');
   await ctx.db.query(`UPDATE unit_allocation SET status='RELEASED' WHERE booking_id=$1`, [id]);
   await ctx.db.query(`UPDATE qty_allocation SET status='RELEASED' WHERE booking_id=$1`, [id]);
+  await ctx.db.query(`UPDATE contract SET status='VOID', void_reason='Đơn bị hủy' WHERE booking_id=$1 AND status <> 'VOID'`, [id]);
   await ctx.db.query(`UPDATE booking SET status='CANCELLED', cancel_reason=$2, cancelled_at=now(), hold_expires_at=NULL WHERE id=$1`, [id, reason.trim()]);
   await logStatus(ctx, id, b.status, 'CANCELLED', reason.trim());
   await audit(ctx, 'booking.cancel', 'booking', id, { reason });
@@ -382,6 +387,7 @@ export async function extendBooking(ctx: ServiceCtx, id: string, newEnd: Date): 
   const after = applyPricingHook(r.after, ctx.pricingHook, input.config);
   await applyWindow(ctx, b, b.starts_at, newEnd);
   await saveQuote(ctx, b, after);
+  await syncDepositRequirement(ctx, id);
   await ctx.db.query('UPDATE booking SET extended_count = extended_count + 1 WHERE id=$1', [id]);
   await logStatus(ctx, id, b.status, b.status, `Gia hạn đến ${fmtTime(ctx)(newEnd)}`);
   await audit(ctx, 'booking.extend', 'booking', id, { newEnd, delta: after.total - Number(b.total) });
@@ -392,6 +398,12 @@ export async function extendBooking(ctx: ServiceCtx, id: string, newEnd: Date): 
 export async function shortenBooking(ctx: ServiceCtx, id: string, newEnd: Date): Promise<ChangeResult> {
   guard(ctx, 'booking.create', FEATURE, { write: true });
   const b = await lockBooking(ctx, id);
+  return shortenLocked(ctx, b, newEnd);
+}
+
+/** Phần lõi của rút ngắn, dùng khi đơn đã được khóa (cũng được gọi lúc nhận thiết bị về sớm). */
+export async function shortenLocked(ctx: ServiceCtx, b: Row, newEnd: Date): Promise<ChangeResult> {
+  const id = b.id as string;
   if (!canExtend(b.status)) throw new ValidationError('Chỉ rút ngắn được đơn đang giữ chỗ, đã xác nhận hoặc đang thuê.');
   if (!(newEnd.getTime() > b.starts_at.getTime())) throw new ValidationError('Giờ kết thúc mới phải sau giờ bắt đầu.');
   if (!(newEnd.getTime() < b.ends_at.getTime())) throw new ValidationError('Giờ kết thúc mới phải sớm hơn giờ kết thúc hiện tại.');
@@ -406,6 +418,7 @@ export async function shortenBooking(ctx: ServiceCtx, id: string, newEnd: Date):
   after = applyPricingHook(after, ctx.pricingHook, input.config);
   await applyWindow(ctx, b, b.starts_at, newEnd);
   await saveQuote(ctx, b, after);
+  await syncDepositRequirement(ctx, id);
   await logStatus(ctx, id, b.status, b.status, `Rút ngắn đến ${fmtTime(ctx)(newEnd)}`);
   await audit(ctx, 'booking.shorten', 'booking', id, { newEnd, delta: after.total - Number(b.total) });
   return { oldTotal: Number(b.total), newTotal: after.total, delta: after.total - Number(b.total) };
@@ -431,6 +444,7 @@ export async function moveBooking(ctx: ServiceCtx, id: string, newStart: Date): 
   if (b.status !== 'QUOTE') await applyWindow(ctx, b, newStart, newEnd);
   else await ctx.db.query('UPDATE booking SET starts_at=$2, ends_at=$3 WHERE id=$1', [id, newStart, newEnd]);
   await saveQuote(ctx, b, after);
+  await syncDepositRequirement(ctx, id);
   await logStatus(ctx, id, b.status, b.status, `Dời lịch sang ${fmtTime(ctx)(newStart)}`);
   await audit(ctx, 'booking.move', 'booking', id, { newStart, newEnd });
   return { oldTotal: Number(b.total), newTotal: after.total, delta: after.total - Number(b.total) };

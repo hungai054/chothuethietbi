@@ -1,4 +1,4 @@
-import { ForbiddenError, type Permission, type PricingHook } from '@rentpro/core';
+import { ForbiddenError, type DepositHook, type Permission, type PricingHook } from '@rentpro/core';
 import { assertCan, type FeatureKey, type KeyRing, type Limits, type ResolvedFeatures } from '@rentpro/tenancy';
 import type { Db } from './client';
 import type { StorageAdapter } from './storage';
@@ -21,6 +21,8 @@ export interface ServiceCtx {
   storage?: StorageAdapter;
   /** Quy tắc giá riêng của extension (nếu tenant bật). */
   pricingHook?: PricingHook;
+  /** Quy tắc tiền cọc riêng của extension (nếu tenant bật). */
+  depositHook?: DepositHook;
 }
 
 export class ReadOnlyError extends Error {

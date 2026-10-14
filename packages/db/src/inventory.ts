@@ -363,3 +363,16 @@ export async function listStocktakes(ctx: ServiceCtx) {
      FROM stocktake s LEFT JOIN branch b ON b.id = s.branch_id ORDER BY s.created_at DESC LIMIT 50`)).rows as
     { id: string; name: string; status: string; created_at: Date; branch_name: string | null; scans: number }[];
 }
+
+/**
+ * Đổi trạng thái thiết bị do HỆ THỐNG điều khiển (giao/nhận, đặt lịch…): không kiểm tra quyền kho của người thao tác
+ * vì nhân viên quầy giao nhận không có quyền quản lý kho. Vẫn tuân thủ máy trạng thái và ghi nhật ký.
+ */
+export async function setUnitStatus(ctx: ServiceCtx, unitId: string, to: UnitStatus, reason: string): Promise<void> {
+  const u = (await ctx.db.query('SELECT status, barcode FROM equipment_unit WHERE id=$1 AND deleted_at IS NULL FOR UPDATE', [unitId])).rows[0];
+  if (!u) throw new NotFoundError('thiết bị');
+  assertTransition(u.status, to, { system: true });
+  await ctx.db.query('UPDATE equipment_unit SET status=$2 WHERE id=$1', [unitId, to]);
+  await ctx.db.query('INSERT INTO unit_status_log(tenant_id,unit_id,from_status,to_status,user_id,reason) VALUES ($1,$2,$3,$4,$5,$6)',
+    [ctx.tenantId, unitId, u.status, to, ctx.userId, reason]);
+}
