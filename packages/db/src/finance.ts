@@ -4,6 +4,7 @@ import {
   type FinanceSettings, type PaymentKind, type PaymentMethod, type Settlement, type FeeKind, type PaymentStatus, FEE_KINDS, ID_IMAGE_MAX_BYTES, VietQrError,
 } from '@rentpro/core';
 import { NotFoundError, ValidationError, audit, guard, need, type ServiceCtx } from './service';
+import { emitEvent } from './api';
 import { newPrivatePath } from './storage';
 
 type Row = Record<string, any>;
@@ -145,6 +146,7 @@ export async function recordPayment(ctx: ServiceCtx, i: PaymentInput): Promise<{
     return { id: ex.id, duplicate: true };
   }
   await audit(ctx, 'payment.record', 'booking', i.bookingId, { paymentId: r.rows[0].id, kind: i.kind, method: i.method, amount: i.amount });
+  await emitEvent(ctx, 'payment.recorded', { payment: { id: r.rows[0].id, bookingId: i.bookingId, kind: i.kind, method: i.method, amount: i.amount } });
   return { id: r.rows[0].id, duplicate: false };
 }
 

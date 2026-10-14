@@ -23,6 +23,7 @@ export function depsFromEnv(env: Env = process.env): JobDeps & { close(): Promis
     appPool, adminPool, keyRing: keyRingFromEnv(env as Record<string, string | undefined>),
     storage: new LocalFsStorage(env.STORAGE_DIR ?? resolve(process.cwd(), '../../.data/storage')),
     notify: { shared: sharedProvidersFromEnv(env) },
+    webhooks: { allowInsecure: env.WEBHOOK_ALLOW_PRIVATE === 'true' },
     publicUrl: publicUrlFrom(env), paySecret: env.FILE_URL_SECRET ?? env.AUTH_SECRET,
     close: async () => { await appPool.end(); await adminPool.end(); },
   };

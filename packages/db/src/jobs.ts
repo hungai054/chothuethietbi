@@ -5,6 +5,7 @@ import { withTenantId } from './client';
 import { releaseExpiredHolds } from './booking';
 import { scanMaintenance, type MaintenanceScanResult } from './maintenance';
 import { runExtensionJobs, withExtensions, type ExtensionJobsResult } from './extensions';
+import { dispatchWebhooks, type WebhookDeps, type WebhookDispatchResult } from './api';
 import { dispatchQueued, scanReminders, type DispatchResult, type NotifyDeps, type ScanResult } from './notify';
 import type { ServiceCtx } from './service';
 import type { StorageAdapter } from './storage';
@@ -17,6 +18,8 @@ export interface JobDeps {
   keyRing?: KeyRing;
   storage?: StorageAdapter;
   notify?: NotifyDeps;
+  /** Gửi webhook đi (mặc định chặn IP nội bộ; test/dev bật allowInsecure) */
+  webhooks?: WebhookDeps;
   /** Địa chỉ gốc của cửa hàng theo slug (VD http://demo.localhost:3000) để dựng liên kết thanh toán */
   publicUrl?: (slug: string) => string | null;
   /** Bí mật ký liên kết thanh toán công khai */
@@ -39,7 +42,7 @@ export async function listRunnableTenants(adminPool: pg.Pool): Promise<JobTenant
   }));
 }
 
-export interface TenantJobResult { tenantId: string; holdsReleased: number; scan: ScanResult | null; dispatch: DispatchResult | null; maintenance: MaintenanceScanResult | null; extensions: ExtensionJobsResult | null; errors: string[] }
+export interface TenantJobResult { tenantId: string; holdsReleased: number; scan: ScanResult | null; dispatch: DispatchResult | null; maintenance: MaintenanceScanResult | null; extensions: ExtensionJobsResult | null; webhooks: WebhookDispatchResult | null; errors: string[] }
 
 /** Một bước của tác vụ nền: giao dịch riêng, khóa advisory để hai worker không chạy trùng, ghi nhật ký kết quả, lỗi không lan sang bước khác. */
 async function step<T>(deps: JobDeps, t: JobTenant, name: string, now: Date, fn: (ctx: ServiceCtx) => Promise<T>): Promise<{ ok: true; value: T } | { ok: false; error: string }> {
@@ -69,7 +72,7 @@ async function step<T>(deps: JobDeps, t: JobTenant, name: string, now: Date, fn:
 }
 
 export async function runTenantJobs(deps: JobDeps, t: JobTenant, now = new Date()): Promise<TenantJobResult> {
-  const out: TenantJobResult = { tenantId: t.id, holdsReleased: 0, scan: null, dispatch: null, maintenance: null, extensions: null, errors: [] };
+  const out: TenantJobResult = { tenantId: t.id, holdsReleased: 0, scan: null, dispatch: null, maintenance: null, extensions: null, webhooks: null, errors: [] };
   const holds = await step(deps, t, 'holds.release', now, (ctx) => releaseExpiredHolds(ctx));
   if (holds.ok) out.holdsReleased = holds.value ?? 0; else out.errors.push(`holds.release: ${holds.error}`);
 
@@ -90,6 +93,10 @@ export async function runTenantJobs(deps: JobDeps, t: JobTenant, now = new Date(
 
   const send = await step(deps, t, 'notifications.dispatch', now, (ctx) => dispatchQueued(ctx, now, deps.notify));
   if (send.ok) out.dispatch = send.value ?? null; else out.errors.push(`notifications.dispatch: ${send.error}`);
+  if (t.features['api']) {
+    const w = await step(deps, t, 'webhooks.dispatch', now, (ctx) => dispatchWebhooks(ctx, now, deps.webhooks));
+    if (w.ok) out.webhooks = w.value ?? null; else out.errors.push(`webhooks.dispatch: ${w.error}`);
+  }
   if (t.features['extensions']) {
     const x = await step(deps, t, 'extensions.jobs', now, (ctx) => runExtensionJobs(ctx, now));
     if (x.ok) out.extensions = x.value ?? null; else out.errors.push(`extensions.jobs: ${x.error}`);

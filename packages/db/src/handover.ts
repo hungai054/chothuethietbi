@@ -2,6 +2,7 @@ import {
   BOOKING_STATUS_LABEL, CONDITIONS, CONDITION_LABEL, assertBookingTransition, compareHandover, lateFee,
   type AccessoryCheck, type BookingStatus, type HandoverIssue, type HandoverItemData, type ItemCondition, type LateFeeResult, type QuoteInput, type Settlement,
 } from '@rentpro/core';
+import { emitBookingEvent } from './api';
 import { lockBooking, shortenLocked } from './booking';
 import { computeLedger, handoverRules, insertFee, storePhoto } from './finance';
 import { setUnitStatus } from './inventory';
@@ -123,6 +124,7 @@ export async function deliverBooking(ctx: ServiceCtx, bookingId: string, input: 
     await saveItems(ctx, h.id, items, stored);
     await ctx.db.query('INSERT INTO booking_status_log(tenant_id,booking_id,from_status,to_status,user_id,reason) VALUES ($1,$2,$3,$4,$5,$6)', [ctx.tenantId, bookingId, 'CONFIRMED', 'ACTIVE', ctx.userId, 'Giao thiết bị']);
     await audit(ctx, 'booking.deliver', 'booking', bookingId, { handoverId: h.id, units: units.map((u) => u.barcode) });
+    await emitBookingEvent(ctx, 'booking.delivered', bookingId, { units: units.map((u) => u.barcode) });
     return { handoverId: h.id };
   } catch (e) {
     await Promise.all(stored.map((p) => ctx.storage!.delete(p).catch(() => undefined)));
@@ -234,6 +236,7 @@ export async function receiveBooking(ctx: ServiceCtx, bookingId: string, input: 
     const r = (await ctx.db.query('SELECT id, code, customer_id, starts_at, ends_at, total FROM booking WHERE id=$1', [bookingId])).rows[0];
     await ctx.ext.afterBookingReturn({ id: r.id, code: r.code, customerId: r.customer_id, start: r.starts_at, end: r.ends_at, total: Number(r.total), status: 'RETURNED', returnedAt, late: late.lateMinutes > 0 && !late.withinGrace });
   }
+  await emitBookingEvent(ctx, 'booking.returned', bookingId, { lateFee: late.amount, balanceOwed: l.settlement.balanceOwed, refundDue: l.settlement.refundDue });
   return { late, issues, fees, warnings, settlement: l.settlement };
 }
 

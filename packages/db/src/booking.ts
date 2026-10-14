@@ -7,6 +7,7 @@ import {
 import { NotFoundError, ValidationError, audit, guard, type ServiceCtx } from './service';
 import { loadPricingConfig, quoteForCustomer, type PricingInput } from './pricing';
 import { syncDepositRequirement } from './finance';
+import { emitBookingEvent } from './api';
 
 const FEATURE = 'booking' as const;
 export const ACTIVE_ALLOC = ['HOLD', 'CONFIRMED', 'ACTIVE', 'MAINTENANCE'] as const;
@@ -271,6 +272,8 @@ export async function createBooking(ctx: ServiceCtx, input: CreateBookingInput):
   await logStatus(ctx, b.id, null, status);
   await audit(ctx, 'booking.create', 'booking', b.id, { code, status, total: qr.quote.total });
   if (status === 'CONFIRMED') await notifyConfirmed(ctx, b.id);
+  await emitBookingEvent(ctx, 'booking.created', b.id);
+  if (status === 'CONFIRMED') await emitBookingEvent(ctx, 'booking.confirmed', b.id);
   return { id: b.id, code };
 }
 
@@ -316,6 +319,7 @@ export async function confirmBooking(ctx: ServiceCtx, id: string): Promise<void>
   await logStatus(ctx, id, b.status, 'CONFIRMED');
   await audit(ctx, 'booking.confirm', 'booking', id);
   await notifyConfirmed(ctx, id);
+  await emitBookingEvent(ctx, 'booking.confirmed', id);
 }
 
 /** Báo cho extension (móc booking.afterConfirm) sau khi đơn được xác nhận. Lỗi extension được cô lập, không hủy việc xác nhận. */
@@ -336,6 +340,7 @@ export async function cancelBooking(ctx: ServiceCtx, id: string, reason: string)
   await ctx.db.query(`UPDATE booking SET status='CANCELLED', cancel_reason=$2, cancelled_at=now(), hold_expires_at=NULL WHERE id=$1`, [id, reason.trim()]);
   await logStatus(ctx, id, b.status, 'CANCELLED', reason.trim());
   await audit(ctx, 'booking.cancel', 'booking', id, { reason });
+  await emitBookingEvent(ctx, 'booking.cancelled', id, { reason: reason.trim() });
 }
 
 // ===== Đổi lịch: dời, gia hạn, rút ngắn =====

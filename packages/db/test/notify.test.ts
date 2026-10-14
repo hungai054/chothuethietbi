@@ -403,7 +403,7 @@ describe('tác vụ nền', () => {
     expect((await t.admin.query('SELECT status FROM booking WHERE id=$1', [exp])).rows[0].status).toBe('CANCELLED');
     expect(pc.get('sms')!.sent).toHaveLength(1);
     expect((await t.admin.query("SELECT name, ok FROM job_run WHERE tenant_id=$1 ORDER BY name", [s.A])).rows).toEqual([
-      { name: 'extensions.jobs', ok: true }, { name: 'holds.release', ok: true }, { name: 'maintenance.scan', ok: true }, { name: 'notifications.dispatch', ok: true }, { name: 'reminders.scan', ok: true },
+      { name: 'extensions.jobs', ok: true }, { name: 'holds.release', ok: true }, { name: 'maintenance.scan', ok: true }, { name: 'notifications.dispatch', ok: true }, { name: 'reminders.scan', ok: true }, { name: 'webhooks.dispatch', ok: true },
     ]);
     expect(await log(off.A)).toHaveLength(0);
     // vòng sau không gửi lại
