@@ -95,3 +95,12 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 - Cột `date` của Postgres phải đọc bằng `to_char(..., 'YYYY-MM-DD')`: driver `pg` đổi thành `Date` theo múi giờ máy chủ và làm lệch một ngày.
 - Biên bản nhận có hư hỏng tự tạo phiếu `REPAIR` gắn đơn (`createDamageOrder`, bỏ qua nếu gói không có `maintenance`). Chuyển chi phí cho khách (`chargeCustomer`) cần `booking.handover` nên kỹ thuật viên không làm được.
 - Không đặt tên export trùng giữa các file `packages/core` (`export *` làm nuốt âm thầm một bên): đã gặp với `findFreeWindow`, `Part`, `listPlans`.
+
+## Báo cáo (Giai đoạn 9): quy tắc không được phá
+
+- Mọi báo cáo trả cùng cấu trúc `ReportResult` (thẻ + các phần có cột/dòng/dòng tổng/biểu đồ). Giao diện (`components/report-view.tsx`) và Excel (`reportToXlsx`) dựng từ cấu trúc này; thêm báo cáo mới = viết hàm `run` và gọi `registerReport` (extension cũng đăng ký theo cách này). Quyền và gói kiểm trong `runReport`, không kiểm ở UI.
+- "Doanh thu ghi nhận" = tiền thuê của đơn ĐÃ GIAO (ACTIVE/RETURNED/CLOSED) tính theo ngày giao + phí phát sinh còn hiệu lực theo ngày phát sinh. "Thực thu" là dòng tiền từ `payment` (RENT + FEE + DEPOSIT − REFUND; WRITE_OFF không tính). Hai số này KHÁC NHAU có chủ ý, đừng gộp.
+- Khoảng ngày luôn tính theo múi giờ cửa hàng (`resolveRange`: [00:00 ngày đầu, 00:00 ngày sau ngày cuối)). Truy vấn có tham số đánh số: mọi `$n` phải được dùng trong câu lệnh (Postgres báo "could not determine data type of parameter"), nên truyền mảng tham số riêng cho từng truy vấn.
+- Báo cáo có tiền cần `reports.finance`; nhân viên quầy chỉ có `reports.view` nên chỉ thấy tổng quan (không có thẻ tiền), hiệu suất, tồn kho. ROI cần gói `reports.roi`, hiệu suất/bảo trì/khách hàng cần `reports.advanced`.
+- Xuất Excel: ô chữ bắt đầu bằng `= + - @` được thêm dấu nháy để không thành công thức (dữ liệu khách nhập vào có thể chứa công thức). Mỗi lần xuất ghi `audit_log` action `report.export`.
+- Gợi ý "thanh lý/mua thêm" chỉ là quy tắc ngưỡng đơn giản (`utilizationHint`), ghi rõ trên báo cáo là tham khảo.

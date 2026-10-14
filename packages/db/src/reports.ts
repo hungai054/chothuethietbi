@@ -1,11 +1,11 @@
 import {
-  AGING_BUCKETS, FEE_KINDS, FEE_KIND_LABEL, GROUP_BY_LABEL, HIGH_UTILIZATION, LOW_UTILIZATION, ORDER_STATUS_LABEL, PAYMENT_KINDS, PAYMENT_KIND_LABEL, ReportFilterError,
+  AGING_BUCKETS, FEE_KINDS, reportToXlsx, FEE_KIND_LABEL, GROUP_BY_LABEL, HIGH_UTILIZATION, LOW_UTILIZATION, ORDER_STATUS_LABEL, PAYMENT_KINDS, PAYMENT_KIND_LABEL, ReportFilterError,
   UNIT_STATUSES, UNIT_STATUS_LABEL, agingBucket, describePeriod, diffStocktake, isGroupBy, localDateKey, ratio, resolveRange, roi, utilization, utilizationHint,
   type FeeKind, type GroupBy, type Permission, type ReportCard, type ReportFilter, type ReportResult, type ReportRow, type ReportSection, type ResolvedRange,
 } from '@rentpro/core';
 import type { FeatureKey } from '@rentpro/tenancy';
 import { computeLedger } from './finance';
-import { ValidationError, guard, type ServiceCtx } from './service';
+import { ValidationError, audit, guard, type ServiceCtx } from './service';
 
 type Row = Record<string, any>;
 const HOUR = 3_600_000;
@@ -206,7 +206,7 @@ async function revenue(ctx: ServiceCtx, f: ReportFilter, now: Date): Promise<Rep
     g: a.label, bookings: a.bookings, rent: a.rent, ...Object.fromEntries(FEE_KINDS.map((k) => [`fee_${k}`, a.fees[k]])), total: a.rent + sumFees(a), discount: a.discount,
   }));
   const totals: ReportRow = { g: 'Tổng', bookings: sum(rows, 'bookings'), rent: sum(rows, 'rent'), ...Object.fromEntries(FEE_KINDS.map((k) => [`fee_${k}`, sum(rows, `fee_${k}`)])), total: sum(rows, 'total'), discount: sum(rows, 'discount') };
-  const columns = [col('g', GROUP_BY_LABEL[g].replace('Theo ', '')), col('bookings', 'Số đơn', 'int'), col('rent', 'Tiền thuê', 'money'), ...FEE_COLS, col('total', 'Doanh thu ghi nhận', 'money'), col('discount', 'Giảm giá (đã trừ)', 'money')];
+  const columns = [col('g', ((l) => l.charAt(0).toUpperCase() + l.slice(1))(GROUP_BY_LABEL[g].replace('Theo ', ''))), col('bookings', 'Số đơn', 'int'), col('rent', 'Tiền thuê', 'money'), ...FEE_COLS, col('total', 'Doanh thu ghi nhận', 'money'), col('discount', 'Giảm giá (đã trừ)', 'money')];
   const accrual: ReportSection = {
     title: 'Doanh thu ghi nhận', columns, rows, totals, note,
     chart: time ? { type: g === 'day' ? 'line' : 'bar', labelKey: 'g', series: [{ key: 'total', label: 'Doanh thu ghi nhận' }] } : { type: 'bar', labelKey: 'g', series: [{ key: 'total', label: 'Doanh thu ghi nhận' }] },
@@ -529,3 +529,10 @@ const builtIn: ReportDef[] = [
 ];
 for (const d of builtIn) registerReport(d);
 
+
+/** Xuất báo cáo ra Excel. Cùng quyền xem báo cáo; mỗi lần xuất được ghi nhật ký. */
+export async function exportReportXlsx(ctx: ServiceCtx, key: string, filter: ReportFilter = {}, now = new Date()): Promise<{ filename: string; data: Buffer }> {
+  const result = await runReport(ctx, key, filter, now);
+  await audit(ctx, 'report.export', 'report', key, { from: filter.from ?? null, to: filter.to ?? null, groupBy: filter.groupBy ?? null });
+  return { filename: `bao-cao-${key}-${localDateKey(now, tzOf(ctx)).replaceAll('-', '')}.xlsx`, data: await reportToXlsx(result) };
+}

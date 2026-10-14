@@ -1,6 +1,7 @@
 import { requireAppSession } from '@/lib/session';
 import { withService } from '@/lib/service';
-import { equipmentUsage } from '@rentpro/db';
+import { equipmentUsage, runReport } from '@rentpro/db';
+import { ReportView } from '@/components/report-view';
 import { Notice } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -9,6 +10,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
   const { error } = await searchParams;
   const { tenant, user, permissions } = await requireAppSession();
   const usage = tenant.features.inventory ? await withService((c) => equipmentUsage(c)) : null;
+  const dash = tenant.features['reports.basic'] && permissions.has('reports.view') ? await withService((c) => runReport(c, 'dashboard')) : null;
   const features = Object.entries(tenant.features).filter(([, v]) => v).map(([k]) => k);
   return (
     <div>
@@ -21,6 +23,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
           {usage.near && ' — sắp đạt hạn mức gói, hãy cân nhắc nâng cấp.'}
         </p>
       )}
+      {dash && <div className="mt-4" data-testid="dashboard"><ReportView r={dash} /></div>}
       <h2 className="mt-6 font-medium">Tính năng theo gói ({features.length})</h2>
       <p className="mt-1 text-sm text-slate-600">{features.join(', ')}</p>
     </div>

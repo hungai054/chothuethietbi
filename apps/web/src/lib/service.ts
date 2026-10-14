@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { AvailabilityError, ForbiddenError, InvalidBookingTransitionError, InvalidTransitionError } from '@rentpro/core';
+import { AvailabilityError, ForbiddenError, InvalidBookingTransitionError, InvalidOrderTransitionError, InvalidTransitionError, ReportFilterError } from '@rentpro/core';
 import { resolve } from 'node:path';
 import { LocalFsStorage, NotFoundError, ReadOnlyError, ValidationError, withTenantId, type ServiceCtx } from '@rentpro/db';
 import { FeatureDisabledError, LimitExceededError, keyRingFromEnv } from '@rentpro/tenancy';
@@ -39,7 +39,7 @@ export async function withPublicTenant<T>(fn: (ctx: ServiceCtx, tenant: TenantIn
   );
 }
 
-const USER_FACING = [ValidationError, NotFoundError, ReadOnlyError, ForbiddenError, FeatureDisabledError, LimitExceededError, InvalidTransitionError, InvalidBookingTransitionError, AvailabilityError];
+const USER_FACING = [ValidationError, NotFoundError, ReadOnlyError, ForbiddenError, FeatureDisabledError, LimitExceededError, InvalidTransitionError, InvalidBookingTransitionError, AvailabilityError, InvalidOrderTransitionError, ReportFilterError];
 
 export const isUserError = (e: unknown): e is Error => USER_FACING.some((c) => e instanceof c);
 
