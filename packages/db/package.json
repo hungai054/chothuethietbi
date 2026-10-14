@@ -16,17 +16,18 @@
     "reset-totp": "tsx src/reset-totp.ts"
   },
   "dependencies": {
-    "pg": "^8.13.0",
-    "@rentpro/tenancy": "workspace:*",
     "@rentpro/core": "workspace:*",
+    "@rentpro/extension-sdk": "workspace:*",
     "@rentpro/notifications": "workspace:*",
-    "@rentpro/extension-sdk": "workspace:*"
+    "@rentpro/tenancy": "workspace:*",
+    "jszip": "3.10.2",
+    "pg": "^8.13.0"
   },
   "devDependencies": {
-    "embedded-postgres": "^18.0.0-beta.1",
     "@types/pg": "^8.11.0",
-    "tsx": "^4.19.0",
+    "embedded-postgres": "^18.0.0-beta.1",
     "exceljs": "^4.4.0",
+    "tsx": "^4.19.0",
     "zod": "^3.24.0"
   }
 }

@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",
+    "@rentpro/billing": "workspace:*",
     "@rentpro/core": "workspace:*",
     "@rentpro/db": "workspace:*",
     "@rentpro/extension-sdk": "workspace:*",

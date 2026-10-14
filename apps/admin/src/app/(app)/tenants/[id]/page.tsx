@@ -6,6 +6,7 @@ import {
 import { FEATURE_KEYS, LIMIT_KEYS } from '@rentpro/tenancy';
 import { signToken } from '@rentpro/core';
 import { actorOf, db, readFlash, requireCan } from '@/lib/session';
+import { DataSection } from './data-section';
 import { SubscriptionSection } from './subscription-section';
 
 export const dynamic = 'force-dynamic';
@@ -177,6 +178,8 @@ export default async function TenantPage({ params, searchParams }: {
       </section>
 
       <SubscriptionSection tenantId={id} />
+
+      <DataSection tenantId={id} slug={tenant.slug} />
 
       <section className={box}>
         <h2 className="font-medium">Ghi chú nội bộ</h2>

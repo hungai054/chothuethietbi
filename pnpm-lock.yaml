@@ -340,6 +340,9 @@ importers:
       '@rentpro-ext/demo-weekend':
         specifier: workspace:*
         version: link:../extensions/demo-weekend
+      '@rentpro/billing':
+        specifier: workspace:*
+        version: link:../packages/billing
       '@rentpro/core':
         specifier: workspace:*
         version: link:../packages/core
@@ -424,6 +427,9 @@ importers:
       '@rentpro/tenancy':
         specifier: workspace:*
         version: link:../tenancy
+      jszip:
+        specifier: 3.10.2
+        version: 3.10.2
       pg:
         specifier: ^8.13.0
         version: 8.23.1

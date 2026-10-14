@@ -86,7 +86,7 @@ test.describe('extension demo-weekend', () => {
 
     await page.goto('/reports/ext.demo-weekend.doanh-thu-thu-trong-tuan');
     await expect(page.getByRole('heading', { name: 'Doanh thu theo thứ trong tuần' })).toBeVisible();
-    await expect(page.getByText('Chủ nhật').first()).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Chủ nhật' })).toBeVisible();
 
     await page.goto('/ext/demo-weekend/cach-tinh');
     await expect(page.getByTestId('ext-title')).toContainText('Phụ thu cuối tuần');

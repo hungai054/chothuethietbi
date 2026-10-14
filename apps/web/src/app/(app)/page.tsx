@@ -1,6 +1,7 @@
 import { requireAppSession } from '@/lib/session';
 import { withService } from '@/lib/service';
-import { equipmentUsage, runReport } from '@rentpro/db';
+import Link from 'next/link';
+import { equipmentUsage, onboardingStatus, runReport } from '@rentpro/db';
 import { ReportView } from '@/components/report-view';
 import { Notice } from '@/components/ui';
 
@@ -11,12 +12,18 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
   const { tenant, user, permissions } = await requireAppSession();
   const usage = tenant.features.inventory ? await withService((c) => equipmentUsage(c)) : null;
   const dash = tenant.features['reports.basic'] && permissions.has('reports.view') ? await withService((c) => runReport(c, 'dashboard')) : null;
+  const setup = tenant.features.inventory && permissions.has('settings.manage') && permissions.has('inventory.manage') ? await withService((c) => onboardingStatus(c)) : null;
   const features = Object.entries(tenant.features).filter(([, v]) => v).map(([k]) => k);
   return (
     <div>
       <Notice error={error} />
       <h1 className="text-2xl font-semibold">{tenant.name}</h1>
       <p className="mt-2 text-slate-600">{user.name} · {user.role} · {permissions.size} quyền</p>
+      {setup && !setup.complete && (
+        <p className="mt-4 rounded bg-blue-50 p-3 text-sm text-blue-900" data-testid="onboarding-card">
+          Hoàn tất thiết lập cửa hàng ({setup.done}/{setup.total} bước): <Link href="/onboarding" className="underline">tiếp tục</Link>
+        </p>
+      )}
       {usage && (
         <p className={`mt-4 rounded p-3 text-sm ${usage.near ? 'bg-amber-50 text-amber-900' : 'bg-white'}`}>
           Thiết bị: {usage.used}{usage.limit !== null ? ` / ${usage.limit}` : ''}

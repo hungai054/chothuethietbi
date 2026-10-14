@@ -110,6 +110,13 @@ export interface CreateTenantInput {
 export async function createTenant(pool: Pool, actor: Actor, input: CreateTenantInput) {
   const tempPassword = `Tmp-${randomBytes(9).toString('base64url')}1`;
   const hash = await hashPassword(tempPassword);
+  const { tenantId } = await provisionTenant(pool, actor, input, hash);
+  return { tenantId, tempPassword };
+}
+
+/** Tạo tenant với mật khẩu chủ cửa hàng đã băm sẵn (dùng cho đăng ký tự phục vụ, nơi chủ tự chọn mật khẩu). */
+export async function provisionTenant(pool: Pool, actor: Actor, input: CreateTenantInput, passwordHash: string) {
+  const hash = passwordHash;
   return tx(pool, async (db) => {
     const plan = (await db.query('SELECT id FROM plan WHERE code=$1', [input.planCode])).rows[0];
     if (!plan) throw new PlatformError(`Không có gói "${input.planCode}".`);
@@ -131,7 +138,7 @@ export async function createTenant(pool: Pool, actor: Actor, input: CreateTenant
     await db.query(`INSERT INTO branch(tenant_id,name) VALUES ($1,'Chi nhánh chính')`, [tenantId]);
     await db.query(`INSERT INTO subscription_event(tenant_id,kind,plan_code) VALUES ($1,'TRIAL_START',$2)`, [tenantId, input.planCode]);
     await audit(db, actor, 'tenant.create', tenantId, { slug: input.slug, plan: input.planCode });
-    return { tenantId, tempPassword };
+    return { tenantId };
   });
 }
 
