@@ -223,6 +223,8 @@ export async function createBooking(ctx: ServiceCtx, input: CreateBookingInput):
   if (!['QUOTE', 'HOLD', 'CONFIRMED'].includes(status)) throw new ValidationError('Trạng thái ban đầu không hợp lệ.');
   if (!(input.end.getTime() > input.start.getTime())) throw new ValidationError('Thời gian kết thúc phải sau thời gian bắt đầu.');
   if (input.lines.length === 0) throw new ValidationError('Chưa chọn thiết bị nào.');
+  // Extension có thể từ chối đơn (ExtensionVeto) trước khi ghi bất cứ thứ gì
+  await ctx.ext?.beforeBookingCreate({ customerId: input.customerId, start: input.start, end: input.end, status, lines: input.lines.map((l) => ({ modelId: l.modelId, qty: l.qty })), notes: input.notes ?? null });
   const seen = new Set<string>();
   for (const l of input.lines) {
     if (!Number.isInteger(l.qty) || l.qty < 1 || l.qty > 1000) throw new ValidationError('Số lượng phải từ 1 đến 1000.');
@@ -268,6 +270,7 @@ export async function createBooking(ctx: ServiceCtx, input: CreateBookingInput):
   await syncDepositRequirement(ctx, b.id);
   await logStatus(ctx, b.id, null, status);
   await audit(ctx, 'booking.create', 'booking', b.id, { code, status, total: qr.quote.total });
+  if (status === 'CONFIRMED') await notifyConfirmed(ctx, b.id);
   return { id: b.id, code };
 }
 
@@ -312,6 +315,14 @@ export async function confirmBooking(ctx: ServiceCtx, id: string): Promise<void>
   await syncDepositRequirement(ctx, id);
   await logStatus(ctx, id, b.status, 'CONFIRMED');
   await audit(ctx, 'booking.confirm', 'booking', id);
+  await notifyConfirmed(ctx, id);
+}
+
+/** Báo cho extension (móc booking.afterConfirm) sau khi đơn được xác nhận. Lỗi extension được cô lập, không hủy việc xác nhận. */
+async function notifyConfirmed(ctx: ServiceCtx, id: string): Promise<void> {
+  if (!ctx.ext) return;
+  const r = (await ctx.db.query('SELECT id, code, customer_id, starts_at, ends_at, total, status FROM booking WHERE id=$1', [id])).rows[0];
+  await ctx.ext.afterBookingConfirm({ id: r.id, code: r.code, customerId: r.customer_id, start: r.starts_at, end: r.ends_at, total: Number(r.total), status: r.status });
 }
 
 export async function cancelBooking(ctx: ServiceCtx, id: string, reason: string): Promise<void> {

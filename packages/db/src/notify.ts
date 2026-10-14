@@ -267,7 +267,21 @@ export async function dispatchQueued(ctx: ServiceCtx, now: Date, deps: NotifyDep
         continue;
       }
     }
-    const r2 = await res.provider.send({ channel: ch, to: r.recipient, body: r.body, subject: r.subject ?? undefined, idempotencyKey: r.idempotency_key });
+    // Extension có thể sửa nội dung hoặc chặn tin (móc notification.beforeSend)
+    let body: string = r.body;
+    let subject: string | undefined = r.subject ?? undefined;
+    if (ctx.ext && r.event !== 'TEST') {
+      const n = await ctx.ext.beforeNotificationSend({ channel: ch, to: r.recipient, body, subject, event: r.event });
+      if (n === null) {
+        await ctx.db.query(`UPDATE notification_log SET status='SKIPPED', error=$2, updated_at=now() WHERE id=$1`, [r.id, 'Extension của cửa hàng đã chặn tin này.']);
+        out.skipped++;
+        continue;
+      }
+      if (n.body !== body) await ctx.db.query('UPDATE notification_log SET body=$2, updated_at=now() WHERE id=$1', [r.id, n.body]);
+      body = n.body;
+      subject = n.subject;
+    }
+    const r2 = await res.provider.send({ channel: ch, to: r.recipient, body, subject, idempotencyKey: r.idempotency_key });
     if (r2.ok) {
       await ctx.db.query(`UPDATE notification_log SET status='SENT', attempts=attempts+1, error=NULL, provider=$2, provider_id=$3, scope=$4, sent_at=$5, updated_at=now() WHERE id=$1`, [r.id, res.provider.name, r2.providerId ?? null, res.scope, now]);
       out.sent++;

@@ -230,6 +230,10 @@ export async function receiveBooking(ctx: ServiceCtx, bookingId: string, input: 
 
   const { issues } = await getHandoversInternal(ctx, bookingId);
   const l = await computeLedger(ctx, bookingId);
+  if (ctx.ext) {
+    const r = (await ctx.db.query('SELECT id, code, customer_id, starts_at, ends_at, total FROM booking WHERE id=$1', [bookingId])).rows[0];
+    await ctx.ext.afterBookingReturn({ id: r.id, code: r.code, customerId: r.customer_id, start: r.starts_at, end: r.ends_at, total: Number(r.total), status: 'RETURNED', returnedAt, late: late.lateMinutes > 0 && !late.withinGrace });
+  }
   return { late, issues, fees, warnings, settlement: l.settlement };
 }
 

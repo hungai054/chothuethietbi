@@ -35,12 +35,29 @@ export function registerReport(def: ReportDef): void {
 
 /** Báo cáo mà người dùng này xem được (đúng gói và đúng quyền). */
 export function listReports(ctx: ServiceCtx): ReportDef[] {
-  return [...REGISTRY.values()].filter((d) => ctx.permissions.has(d.permission) && ctx.features[d.feature] === true);
+  return [...REGISTRY.values(), ...extensionReports(ctx)].filter((d) => ctx.permissions.has(d.permission) && ctx.features[d.feature] === true);
 }
+
+/** Báo cáo của extension đang bật cho cửa hàng, quy về cùng dạng ReportDef (khóa `ext.<mã>.<khóa>`). */
+function extensionReports(ctx: ServiceCtx): ReportDef[] {
+  const host = ctx.ext;
+  if (!host) return [];
+  return host.reports().map(({ code, name, report }) => ({
+    key: `ext.${code}.${report.key}`, title: `${report.title} (${name})`, description: report.description, feature: 'extensions' as const, permission: report.permission ?? 'reports.view',
+    range: report.range ?? 'month',
+    // Lỗi của extension trả về dạng ghi chú trên báo cáo (không ném lỗi) để giao dịch không bị hủy và nhật ký lỗi extension được lưu lại
+    run: (c: ServiceCtx, f: ReportFilter) => host.runReport(code, report.key, f)
+      .then((r) => ({ ...r, key: `ext.${code}.${report.key}` }))
+      .catch((e: Error) => ({ key: `ext.${code}.${report.key}`, title: report.title, period: '', sections: [], notes: [e.message] })),
+  }));
+}
+
+/** Báo cáo lõi theo khóa (không gồm báo cáo extension: dùng findReport khi có ngữ cảnh cửa hàng). */
 export const reportDef = (key: string): ReportDef | undefined => REGISTRY.get(key);
+export const findReport = (ctx: ServiceCtx, key: string): ReportDef | undefined => REGISTRY.get(key) ?? extensionReports(ctx).find((d) => d.key === key);
 
 export async function runReport(ctx: ServiceCtx, key: string, filter: ReportFilter = {}, now = new Date()): Promise<ReportResult> {
-  const def = REGISTRY.get(key);
+  const def = findReport(ctx, key);
   if (!def) throw new ValidationError('Báo cáo không tồn tại.');
   guard(ctx, def.permission, def.feature);
   for (const [k, v] of [['Chi nhánh', filter.branchId], ['Danh mục', filter.categoryId]] as const) if (v && !UUID.test(v)) throw new ReportFilterError(`${k} không hợp lệ.`);

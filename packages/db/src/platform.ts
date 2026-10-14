@@ -247,3 +247,87 @@ export async function listSupportAccess(pool: Pool, tenantId: string, limit = 20
   const r = await pool.query('SELECT * FROM support_access WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2', [tenantId, limit]);
   return r.rows as { id: string; platform_user_email: string; reason: string; created_at: Date; expires_at: Date; ended_at: Date | null }[];
 }
+
+// ===== Extension theo cửa hàng (cổng quản trị) =====
+import { createHash } from 'node:crypto';
+import { checkCompatibility, getExtension, listExtensions, parseExtensionConfig, validateMigrationSql, type ExtensionDefinition } from '@rentpro/extension-sdk';
+import { resolveFeatures } from '@rentpro/tenancy';
+
+export interface TenantExtensionAdminRow {
+  code: string; name: string; version: string; description: string | null; hooks: string[]; compatible: string | null;
+  enabled: boolean; config: unknown; enabledAt: Date | null; enabledBy: string | null; installed: boolean;
+}
+
+/** Extension đã cài trong bản triển khai (registry) cùng trạng thái bật/tắt và cấu hình của một cửa hàng. */
+export async function listTenantExtensionsAdmin(pool: Pool, tenantId: string): Promise<TenantExtensionAdminRow[]> {
+  const rows = (await pool.query('SELECT * FROM tenant_extension WHERE tenant_id=$1', [tenantId])).rows;
+  const byCode = new Map(rows.map((r) => [r.extension_code as string, r]));
+  const out: TenantExtensionAdminRow[] = listExtensions().map((d) => {
+    const r = byCode.get(d.manifest.code);
+    return {
+      code: d.manifest.code, name: d.manifest.name, version: d.manifest.version, description: d.manifest.description ?? null, hooks: d.manifest.hooks, compatible: checkCompatibility(d.manifest),
+      enabled: r?.enabled === true, config: r?.config ?? {}, enabledAt: r?.enabled_at ?? null, enabledBy: r?.enabled_by ?? null, installed: true,
+    };
+  });
+  // Cửa hàng còn bản ghi cho extension không còn được cài: hiện ra để quản trị gỡ
+  for (const r of rows) if (!getExtension(r.extension_code)) out.push({ code: r.extension_code, name: r.extension_code, version: r.version ?? '?', description: null, hooks: [], compatible: 'Extension chưa được cài trong bản triển khai này.', enabled: r.enabled, config: r.config, enabledAt: r.enabled_at, enabledBy: r.enabled_by, installed: false });
+  return out;
+}
+
+/**
+ * Bật/tắt extension và đặt cấu hình cho một cửa hàng. Chỉ extension đã cài, tương thích SDK; cấu hình kiểm theo schema của extension;
+ * bật cần cửa hàng có tính năng `extensions` (theo gói hoặc ghi đè).
+ */
+export async function setTenantExtension(pool: Pool, actor: Actor, tenantId: string, code: string, input: { enabled: boolean; config?: unknown }): Promise<void> {
+  const def = getExtension(code);
+  if (!def) throw new PlatformError(`Extension "${code}" chưa được cài trong bản triển khai này (chạy pnpm ext:sync và build lại).`);
+  const compat = checkCompatibility(def.manifest);
+  if (compat) throw new PlatformError(compat);
+  const cfg = parseExtensionConfig(def, input.config ?? {});
+  if (!cfg.ok) throw new PlatformError(`Cấu hình không hợp lệ: ${cfg.error}`);
+  await tx(pool, async (db) => {
+    const t = (await db.query('SELECT t.feature_overrides, p.features FROM tenant t JOIN plan p ON p.id=t.plan_id WHERE t.id=$1 FOR UPDATE OF t', [tenantId])).rows[0];
+    if (!t) throw new PlatformError('Không tìm thấy khách hàng.');
+    if (input.enabled && resolveFeatures({ planFeatures: t.features, overrides: t.feature_overrides })['extensions'] !== true) throw new PlatformError('Gói của khách hàng chưa có tính năng extension. Hãy đổi gói hoặc bật ghi đè "extensions" trước.');
+    await db.query(
+      `INSERT INTO tenant_extension(tenant_id, extension_code, enabled, config, version, enabled_at, enabled_by) VALUES ($1,$2,$3,$4,$5,CASE WHEN $3 THEN now() END,$6)
+       ON CONFLICT (tenant_id, extension_code) DO UPDATE SET enabled=EXCLUDED.enabled, config=EXCLUDED.config, version=EXCLUDED.version,
+         enabled_at = CASE WHEN EXCLUDED.enabled AND NOT tenant_extension.enabled THEN now() WHEN EXCLUDED.enabled THEN tenant_extension.enabled_at ELSE NULL END, enabled_by = EXCLUDED.enabled_by`,
+      [tenantId, code, input.enabled, JSON.stringify(cfg.config), def.manifest.version, actor.email]);
+    await audit(db, actor, input.enabled ? 'tenant.extension.enable' : 'tenant.extension.disable', tenantId, { code, version: def.manifest.version, config: cfg.config });
+  });
+}
+
+export async function listExtensionErrors(pool: Pool, tenantId: string, limit = 30) {
+  return (await pool.query('SELECT extension_code, hook, message, created_at FROM extension_error_log WHERE tenant_id=$1 ORDER BY id DESC LIMIT $2', [tenantId, Math.min(limit, 200)])).rows as { extension_code: string; hook: string; message: string; created_at: Date }[];
+}
+
+/**
+ * Áp migration riêng của các extension đã cài (chạy bằng role quản trị, một lần cho mỗi migration, có checksum).
+ * Chỉ nhận migration đạt `validateMigrationSql` (bảng `ext_<mã>_*` có RLS); bảng mới được cấp quyền cho rentpro_app tự động.
+ */
+export async function applyExtensionMigrations(pool: Pool, defs: ExtensionDefinition[] = listExtensions()): Promise<string[]> {
+  const applied: string[] = [];
+  for (const d of defs) {
+    for (const m of d.manifest.migrations ?? []) {
+      const bad = validateMigrationSql(d.manifest.code, m.sql);
+      if (bad) throw new PlatformError(`Migration "${m.id}" của extension "${d.manifest.code}" không hợp lệ: ${bad}`);
+      const checksum = createHash('sha256').update(m.sql).digest('hex');
+      const done = (await pool.query('SELECT checksum FROM ext_migration WHERE extension_code=$1 AND migration_id=$2', [d.manifest.code, m.id])).rows[0];
+      if (done) {
+        if (done.checksum !== checksum) throw new PlatformError(`Migration "${m.id}" của extension "${d.manifest.code}" đã áp dụng nhưng nội dung đã bị sửa. Không sửa migration đã chạy: hãy thêm migration mới.`);
+        continue;
+      }
+      await tx(pool, async (db) => {
+        await db.query(m.sql);
+        for (const t of m.sql.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z0-9_]+)/gi)) {
+          await db.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ${t[1]} TO rentpro_app`);
+          await db.query(`GRANT ALL ON ${t[1]} TO rentpro_admin`);
+        }
+        await db.query('INSERT INTO ext_migration(extension_code, migration_id, checksum) VALUES ($1,$2,$3)', [d.manifest.code, m.id, checksum]);
+      });
+      applied.push(`${d.manifest.code}:${m.id}`);
+    }
+  }
+  return applied;
+}

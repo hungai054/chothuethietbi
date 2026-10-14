@@ -19,3 +19,4 @@ export * from './customization';
 export * from './contract-text';
 export * from './users';
 export * from './domains';
+export * from './extensions';

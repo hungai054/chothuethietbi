@@ -4,6 +4,7 @@ import { resolveFeatures, resolveLimits, type KeyRing } from '@rentpro/tenancy';
 import { withTenantId } from './client';
 import { releaseExpiredHolds } from './booking';
 import { scanMaintenance, type MaintenanceScanResult } from './maintenance';
+import { runExtensionJobs, withExtensions, type ExtensionJobsResult } from './extensions';
 import { dispatchQueued, scanReminders, type DispatchResult, type NotifyDeps, type ScanResult } from './notify';
 import type { ServiceCtx } from './service';
 import type { StorageAdapter } from './storage';
@@ -38,7 +39,7 @@ export async function listRunnableTenants(adminPool: pg.Pool): Promise<JobTenant
   }));
 }
 
-export interface TenantJobResult { tenantId: string; holdsReleased: number; scan: ScanResult | null; dispatch: DispatchResult | null; maintenance: MaintenanceScanResult | null; errors: string[] }
+export interface TenantJobResult { tenantId: string; holdsReleased: number; scan: ScanResult | null; dispatch: DispatchResult | null; maintenance: MaintenanceScanResult | null; extensions: ExtensionJobsResult | null; errors: string[] }
 
 /** Một bước của tác vụ nền: giao dịch riêng, khóa advisory để hai worker không chạy trùng, ghi nhật ký kết quả, lỗi không lan sang bước khác. */
 async function step<T>(deps: JobDeps, t: JobTenant, name: string, now: Date, fn: (ctx: ServiceCtx) => Promise<T>): Promise<{ ok: true; value: T } | { ok: false; error: string }> {
@@ -48,10 +49,10 @@ async function step<T>(deps: JobDeps, t: JobTenant, name: string, now: Date, fn:
     const value = await withTenantId(deps.appPool, t.id, async (db) => {
       const lock = await db.query('SELECT pg_try_advisory_xact_lock(hashtext($1)) AS ok', [`job:${name}:${t.id}`]);
       if (!lock.rows[0].ok) return undefined;
-      return fn({
+      return withExtensions({
         db, tenantId: t.id, tenantStatus: t.status, userId: null, permissions: new Set(PERMISSIONS),
         features: t.features as never, limits: t.limits as never, timezone: t.timezone, keyRing: deps.keyRing, storage: deps.storage,
-      });
+      }, fn);
     });
     result = { ok: true, value: value as T };
   } catch (e) {
@@ -68,7 +69,7 @@ async function step<T>(deps: JobDeps, t: JobTenant, name: string, now: Date, fn:
 }
 
 export async function runTenantJobs(deps: JobDeps, t: JobTenant, now = new Date()): Promise<TenantJobResult> {
-  const out: TenantJobResult = { tenantId: t.id, holdsReleased: 0, scan: null, dispatch: null, maintenance: null, errors: [] };
+  const out: TenantJobResult = { tenantId: t.id, holdsReleased: 0, scan: null, dispatch: null, maintenance: null, extensions: null, errors: [] };
   const holds = await step(deps, t, 'holds.release', now, (ctx) => releaseExpiredHolds(ctx));
   if (holds.ok) out.holdsReleased = holds.value ?? 0; else out.errors.push(`holds.release: ${holds.error}`);
 
@@ -89,6 +90,10 @@ export async function runTenantJobs(deps: JobDeps, t: JobTenant, now = new Date(
 
   const send = await step(deps, t, 'notifications.dispatch', now, (ctx) => dispatchQueued(ctx, now, deps.notify));
   if (send.ok) out.dispatch = send.value ?? null; else out.errors.push(`notifications.dispatch: ${send.error}`);
+  if (t.features['extensions']) {
+    const x = await step(deps, t, 'extensions.jobs', now, (ctx) => runExtensionJobs(ctx, now));
+    if (x.ok) out.extensions = x.value ?? null; else out.errors.push(`extensions.jobs: ${x.error}`);
+  }
   return out;
 }
 

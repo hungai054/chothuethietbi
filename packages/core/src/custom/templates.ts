@@ -18,7 +18,7 @@ const VAR_RE = /\{([a-z_][a-z0-9_.]*)\}/g;
 export function unknownDocVariables(text: string, customKeys: readonly string[] = []): string[] {
   const known = new Set<string>(DOC_VARIABLES);
   const cf = new Set(customKeys.map((k) => `cf.${k}`));
-  return [...new Set([...text.matchAll(VAR_RE)].map((m) => m[1]!).filter((v) => !known.has(v) && !cf.has(v)))];
+  return [...new Set([...text.matchAll(VAR_RE)].map((m) => m[1]!).filter((v) => !known.has(v) && !cf.has(v) && !/^ext\.[a-z0-9_]+$/.test(v)))];
 }
 
 export function validateDocText(text: string, customKeys: readonly string[] = [], max = MAX_TERM_LENGTH): string | null {

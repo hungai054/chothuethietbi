@@ -64,6 +64,7 @@ export async function createContract(ctx: ServiceCtx, bookingId: string, customF
     ngay_bat_dau: new Intl.DateTimeFormat('vi-VN', { timeZone: ctx.timezone ?? 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' }).format(b.starts_at),
     ngay_ket_thuc: new Intl.DateTimeFormat('vi-VN', { timeZone: ctx.timezone ?? 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' }).format(b.ends_at),
   };
+  Object.assign(vars, await ctx.ext?.contractVariables({ number, bookingCode: b.code, customerName: b.cname, rentTotal: Number(b.total), depositRequired: Number(b.deposit_required) }));
   for (const [e, vals] of [['CUSTOMER', custValues], ['BOOKING', bookValues], ['CONTRACT', contractValues]] as const)
     for (const d of byEntity(e)) vars[`cf.${d.key}`] = formatFieldValue(d, vals[d.key]);
 

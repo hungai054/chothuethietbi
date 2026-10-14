@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { withTenantId, MemoryStorage, type ServiceCtx } from '../src';
+import { withTenantId, withExtensions, MemoryStorage, type ServiceCtx } from '../src';
 import { IMPERSONATION_PERMISSIONS, permissionsFor, type DepositHook, type Permission, type PricingHook, type TenantRole } from '@rentpro/core';
 import { FEATURE_KEYS, resolveFeatures, resolveLimits, type FeatureKey, type KeyRing, type Limits } from '@rentpro/tenancy';
 import type { TestDb } from './helpers';
@@ -23,12 +23,12 @@ export async function mkTenant(t: TestDb, planCode = 'p', status = 'ACTIVE') {
 
 export function runAs<T>(t: TestDb, tenantId: string, o: Opts, fn: (c: ServiceCtx) => Promise<T>): Promise<T> {
   const on = Object.fromEntries(FEATURE_KEYS.filter((k) => !o.off?.includes(k)).map((k) => [k, true]));
-  return withTenantId(t.app, tenantId, (db) => fn({
+  return withTenantId(t.app, tenantId, (db) => withExtensions({
     db, tenantId, tenantStatus: o.status ?? 'ACTIVE', userId: o.userId ?? null,
     permissions: o.support ? new Set(IMPERSONATION_PERMISSIONS) : new Set(o.perms ?? permissionsFor(o.role ?? 'OWNER')),
     features: resolveFeatures({ planFeatures: on, overrides: {} }), limits: resolveLimits(o.limits ?? {}, {}),
     keyRing: o.ring ?? ring, storage: o.storage ?? storage, pricingHook: o.hook, depositHook: o.depositHook, timezone: o.timezone,
-  }));
+  }, fn));
 }
 
 // Ảnh giả có chữ ký file hợp lệ

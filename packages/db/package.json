@@ -19,12 +19,14 @@
     "pg": "^8.13.0",
     "@rentpro/tenancy": "workspace:*",
     "@rentpro/core": "workspace:*",
-    "@rentpro/notifications": "workspace:*"
+    "@rentpro/notifications": "workspace:*",
+    "@rentpro/extension-sdk": "workspace:*"
   },
   "devDependencies": {
     "embedded-postgres": "^18.0.0-beta.1",
     "@types/pg": "^8.11.0",
     "tsx": "^4.19.0",
-    "exceljs": "^4.4.0"
+    "exceljs": "^4.4.0",
+    "zod": "^3.24.0"
   }
 }
