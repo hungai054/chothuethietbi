@@ -395,7 +395,7 @@ export async function extendBooking(ctx: ServiceCtx, id: string, newEnd: Date): 
   if (!(newEnd.getTime() > b.ends_at.getTime())) throw new ValidationError('Giờ kết thúc mới phải sau giờ kết thúc hiện tại. Muốn rút ngắn hãy dùng "Rút ngắn / trả sớm".');
   const input = hydrateInput(b, b.starts_at, b.ends_at);
   const r = repriceForNewEnd(input, newEnd);
-  const after = applyPricingHook(r.after, ctx.pricingHook, input.config);
+  const after = applyPricingHook(r.after, ctx.pricingHook, input.config, { start: b.starts_at, end: newEnd });
   await applyWindow(ctx, b, b.starts_at, newEnd);
   await saveQuote(ctx, b, after);
   await syncDepositRequirement(ctx, id);
@@ -426,7 +426,7 @@ export async function shortenLocked(ctx: ServiceCtx, b: Row, newEnd: Date): Prom
     if (e instanceof PricingError) throw new ValidationError(e.message);
     throw e;
   }
-  after = applyPricingHook(after, ctx.pricingHook, input.config);
+  after = applyPricingHook(after, ctx.pricingHook, input.config, { start: b.starts_at, end: newEnd });
   await applyWindow(ctx, b, b.starts_at, newEnd);
   await saveQuote(ctx, b, after);
   await syncDepositRequirement(ctx, id);
@@ -447,7 +447,7 @@ export async function moveBooking(ctx: ServiceCtx, id: string, newStart: Date): 
   const input = hydrateInput(b, newStart, newEnd);
   let after: Quote;
   try {
-    after = applyPricingHook(quoteRental(input), ctx.pricingHook, input.config);
+    after = applyPricingHook(quoteRental(input), ctx.pricingHook, input.config, { start: newStart, end: newEnd });
   } catch (e) {
     if (e instanceof PricingError) throw new ValidationError(e.message);
     throw e;

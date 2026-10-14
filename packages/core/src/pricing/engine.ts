@@ -194,17 +194,18 @@ export function quoteRental(input: QuoteInput): Quote {
   return finalize({ durationHours: hours, calendarDays: days, lines, discount, delivery, adjustments: [], vatRate: cfg.vatEnabled ? cfg.vatPercent : 0, warnings: [] }, cfg);
 }
 
-export type PricingHook = (quote: Quote) => Adjustment[];
+/** `info` cho hook biết khoảng thời gian thuê (để tính phụ thu theo ngày trong tuần, mùa vụ…). */
+export type PricingHook = (quote: Quote, info: { start: Date; end: Date }) => Adjustment[];
 
 /**
  * Chạy hook điều chỉnh giá của extension ở bước cuối. Hook chỉ được THÊM dòng điều chỉnh (có nhãn rõ ràng);
  * không sửa các dòng gốc. Lỗi hoặc kết quả sai định dạng thì bỏ qua và ghi cảnh báo, không làm hỏng báo giá.
  */
-export function applyPricingHook(quote: Quote, hook: PricingHook | undefined, cfg: PricingConfig): Quote {
+export function applyPricingHook(quote: Quote, hook: PricingHook | undefined, cfg: PricingConfig, info: { start: Date; end: Date }): Quote {
   if (!hook) return quote;
   let out: Adjustment[];
   try {
-    out = hook(structuredClone(quote));
+    out = hook(structuredClone(quote), { start: new Date(info.start), end: new Date(info.end) });
   } catch (e) {
     return { ...quote, warnings: [...quote.warnings, `Quy tắc giá riêng bị lỗi và được bỏ qua: ${(e as Error).message}`] };
   }

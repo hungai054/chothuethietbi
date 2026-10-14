@@ -1,3 +1,4 @@
+import '@/extensions.generated'; // đăng ký extension lúc build (file sinh bởi pnpm ext:sync)
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createPool, getPlatformUser, type PlatformUser } from '@rentpro/db';

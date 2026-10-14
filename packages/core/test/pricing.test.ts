@@ -203,18 +203,18 @@ describe('hook điều chỉnh giá của extension', () => {
   const c = cfg({ vatEnabled: true, vatPercent: 10 });
 
   it('thêm dòng điều chỉnh có nhãn, VAT tính trên số đã điều chỉnh', () => {
-    const q = applyPricingHook(quoteRental(input(48, { config: c })), (qq) => [{ label: 'Phụ thu cuối tuần +20%', amount: Math.round(qq.subtotal * 0.2), source: 'extension' }], c);
+    const q = applyPricingHook(quoteRental(input(48, { config: c })), (qq) => [{ label: 'Phụ thu cuối tuần +20%', amount: Math.round(qq.subtotal * 0.2), source: 'extension' }], c, { start: new Date(), end: new Date() });
     expect(q.adjustments).toEqual([{ label: 'Phụ thu cuối tuần +20%', amount: 200_000, source: 'extension' }]);
     expect(q.vatBase).toBe(1_200_000);
     expect(q.total).toBe(1_320_000);
   });
   it('cho phép điều chỉnh âm (ưu đãi)', () => {
-    const q = applyPricingHook(base(), () => [{ label: 'Ưu đãi đối tác', amount: -100_000, source: 'extension' }], cfg());
+    const q = applyPricingHook(base(), () => [{ label: 'Ưu đãi đối tác', amount: -100_000, source: 'extension' }], cfg(), { start: new Date(), end: new Date() });
     expect(q.total).toBe(900_000);
   });
   it('hook ném lỗi: bỏ qua, báo giá giữ nguyên và có cảnh báo', () => {
     const b = base();
-    const q = applyPricingHook(b, () => { throw new Error('boom'); }, cfg());
+    const q = applyPricingHook(b, () => { throw new Error('boom'); }, cfg(), { start: new Date(), end: new Date() });
     expect(q.total).toBe(b.total);
     expect(q.adjustments).toEqual([]);
     expect(q.warnings[0]).toMatch(/bỏ qua.*boom/);
@@ -224,20 +224,20 @@ describe('hook điều chỉnh giá của extension', () => {
       [{ label: '', amount: 1, source: 'extension' }], [{ label: 'x', amount: 1.5, source: 'extension' }],
       [{ label: 'x', amount: 99_999_999, source: 'extension' }], 'oops', null,
     ]) {
-      const q = applyPricingHook(base(), (() => bad) as never, cfg());
+      const q = applyPricingHook(base(), (() => bad) as never, cfg(), { start: new Date(), end: new Date() });
       expect(q.total).toBe(1_000_000);
       expect(q.warnings.length).toBe(1);
     }
   });
   it('hook không sửa được các dòng gốc (nhận bản sao)', () => {
     const b = base();
-    const q = applyPricingHook(b, (qq) => { qq.lines[0]!.total = 1; qq.subtotal = 1; return []; }, cfg());
+    const q = applyPricingHook(b, (qq) => { qq.lines[0]!.total = 1; qq.subtotal = 1; return []; }, cfg(), { start: new Date(), end: new Date() });
     expect(q.lines[0]!.total).toBe(1_000_000);
     expect(q.total).toBe(1_000_000);
   });
   it('không có hook: trả nguyên báo giá', () => {
     const b = base();
-    expect(applyPricingHook(b, undefined, cfg())).toBe(b);
+    expect(applyPricingHook(b, undefined, cfg(), { start: new Date(), end: new Date() })).toBe(b);
   });
 });
 

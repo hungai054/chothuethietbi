@@ -17,7 +17,11 @@
     "dev:web": "pnpm --filter @rentpro/web dev",
     "dev:admin": "pnpm --filter @rentpro/admin dev",
     "db:migrate": "pnpm --filter @rentpro/db migrate",
-    "admin:reset-totp": "pnpm --filter @rentpro/db reset-totp"
+    "admin:reset-totp": "pnpm --filter @rentpro/db reset-totp",
+    "ext:new": "node scripts/ext-new.mjs",
+    "ext:sync": "node scripts/ext-sync.mjs",
+    "ext:check": "pnpm --filter @rentpro/worker ext:check",
+    "ext:migrate": "pnpm --filter @rentpro/worker ext:migrate"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

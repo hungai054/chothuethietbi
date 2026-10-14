@@ -9,7 +9,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const { tenant, user, permissions, support } = await requireAppSession();
-  const unread = await withService((c) => listInbox(c, 50)).then((r) => r.unread).catch(() => 0);
+  const { unread, extPages } = await withService(async (c) => ({
+    unread: (await listInbox(c, 50)).unread,
+    extPages: (c.ext?.pages() ?? []).map((p) => ({ code: p.code, path: p.page.path, title: p.page.title, permission: p.page.permission ?? 'reports.view' })),
+  })).catch(() => ({ unread: 0, extPages: [] as { code: string; path: string; title: string; permission: string }[] }));
   const L = tenant.labels;
   const b = tenant.branding;
   const f = tenant.features;
@@ -27,6 +30,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     { href: '/pricing', label: L.pricing, show: f.pricing && permissions.has('pricing.view') },
     { href: '/inventory/scan', label: 'Quét mã', show: f['inventory.barcode'] && permissions.has('inventory.view') },
     { href: '/inventory/stocktake', label: 'Kiểm kê', show: f['inventory.stocktake'] && permissions.has('inventory.stocktake') },
+    ...extPages.map((p) => ({ href: `/ext/${p.code}/${p.path}`, label: p.title, show: permissions.has(p.permission as never) })),
     { href: '/settings', label: 'Cài đặt', show: permissions.has('settings.manage') || permissions.has('users.manage') },
   ].filter((l) => l.show);
   const readOnly = tenant.status === 'READ_ONLY' || tenant.status === 'SUSPENDED';

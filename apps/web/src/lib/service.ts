@@ -1,7 +1,8 @@
+import '@/extensions.generated'; // đăng ký extension lúc build (file sinh bởi pnpm ext:sync)
 import { redirect } from 'next/navigation';
 import { AvailabilityError, ForbiddenError, InvalidBookingTransitionError, InvalidOrderTransitionError, InvalidTransitionError, ReportFilterError } from '@rentpro/core';
 import { resolve } from 'node:path';
-import { LocalFsStorage, NotFoundError, ReadOnlyError, ValidationError, withTenantId, type ServiceCtx } from '@rentpro/db';
+import { LocalFsStorage, NotFoundError, withExtensions, ReadOnlyError, ValidationError, withTenantId, type ServiceCtx } from '@rentpro/db';
 import { FeatureDisabledError, LimitExceededError, keyRingFromEnv } from '@rentpro/tenancy';
 import { pool } from './db';
 import { requireAppSession, type AppSession } from './session';
@@ -17,11 +18,11 @@ const keyRing = () => (g.__ring ??= keyRingFromEnv());
 export async function withService<T>(fn: (ctx: ServiceCtx, session: AppSession) => Promise<T>): Promise<T> {
   const s = await requireAppSession();
   return withTenantId(pool(), s.tenant.id, (db) =>
-    fn({
+    withExtensions({
       db, tenantId: s.tenant.id, tenantStatus: s.tenant.status, userId: s.support ? null : s.user.id,
       permissions: s.permissions, features: s.tenant.features, limits: s.tenant.limits,
       timezone: s.tenant.timezone, keyRing: keyRing(), storage: storage(),
-    }, s),
+    }, (ctx) => fn(ctx, s)),
   );
 }
 

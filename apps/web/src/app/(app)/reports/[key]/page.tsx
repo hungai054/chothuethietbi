@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { GROUP_BYS, GROUP_BY_LABEL, isGroupBy, localDateKey } from '@rentpro/core';
-import { listBranches, listCategoriesFlat, reportDef, runReport } from '@rentpro/db';
+import { findReport, listBranches, listCategoriesFlat, runReport } from '@rentpro/db';
 import { ReportView } from '@/components/report-view';
 import { Field, Notice, btn, btnGhost, card, input } from '@/components/ui';
-import { requireAccess } from '@/lib/session';
+import { requireAccess, requireAppSession } from '@/lib/session';
 import { isUserError, withService } from '@/lib/service';
 import { redirect } from 'next/navigation';
 
@@ -25,7 +25,9 @@ async function apply(key: string, f: FormData) {
 export default async function ReportPage({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<Q> }) {
   const { key } = await params;
   const q = await searchParams;
-  const def = reportDef(key);
+  await requireAppSession();
+  // Báo cáo lõi hoặc báo cáo của extension đang bật cho cửa hàng (khóa dạng ext.<mã>.<khóa>)
+  const def = await withService(async (c) => { const d = findReport(c, key); return d ? { feature: d.feature, permission: d.permission, range: d.range, title: d.title, groupable: d.groupable, branchFilter: d.branchFilter } : null; });
   if (!def) notFound();
   const sess = await requireAccess(def.feature, def.permission);
   const tz = sess.tenant.timezone;

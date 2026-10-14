@@ -9,11 +9,15 @@
     "once": "tsx --env-file=../../.env --env-file=../web/.env.local --env-file=../admin/.env.local src/main.ts --once",
     "typecheck": "tsc --noEmit",
     "lint": "echo skip",
-    "test": "vitest run"
+    "test": "vitest run",
+    "ext:check": "tsx src/ext-cli.ts check",
+    "ext:migrate": "tsx --env-file=../../.env --env-file=../web/.env.local --env-file=../admin/.env.local src/ext-cli.ts migrate"
   },
   "dependencies": {
+    "@rentpro-ext/demo-weekend": "workspace:*",
     "@rentpro/core": "workspace:*",
     "@rentpro/db": "workspace:*",
+    "@rentpro/extension-sdk": "workspace:*",
     "@rentpro/notifications": "workspace:*",
     "@rentpro/tenancy": "workspace:*",
     "pg": "^8.13.0"

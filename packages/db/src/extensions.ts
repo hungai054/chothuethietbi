@@ -116,10 +116,10 @@ export class ExtensionHost {
   pricingHook(): PricingHook | undefined {
     const list = this.with('pricing.adjust');
     if (list.length === 0) return undefined;
-    return (quote) => {
+    return (quote, info) => {
       const out: ReturnType<PricingHook> = [];
       for (const a of list) {
-        try { out.push(...a.def.hooks!['pricing.adjust']!(this.ctxOf(a), quote)); } catch (e) { this.fail(a.def.manifest.code, 'pricing.adjust', e); }
+        try { out.push(...a.def.hooks!['pricing.adjust']!(this.ctxOf(a), quote, info)); } catch (e) { this.fail(a.def.manifest.code, 'pricing.adjust', e); }
       }
       return out;
     };

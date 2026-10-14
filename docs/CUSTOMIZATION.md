@@ -7,7 +7,7 @@ Khách cần X
  ├─ X là một con số / bật-tắt / chữ hiển thị / mức mặc định?   → Tầng 1: Cấu hình (tenant.settings)
  ├─ X là tính năng có sẵn nhưng chưa bật cho gói của khách?     → Tầng 2: Cờ tính năng / ghi đè theo tenant (cổng quản trị)
  ├─ X là thêm dữ liệu, đổi chữ, đổi mẫu, đổi quyền, đổi diện mạo? → Tầng 3: Không-code (bên dưới)
- └─ X là LOGIC nghiệp vụ riêng (tính giá, cọc, báo cáo, hook)?   → Tầng 4: Extension (Giai đoạn 11), trong extensions/<ma-khach-hang>/
+ └─ X là LOGIC nghiệp vụ riêng (tính giá, cọc, báo cáo, hook)?   → Tầng 4: Extension (xem cuối tài liệu), trong extensions/<ma-khach-hang>/
 ```
 
 ## Tầng 3: tùy biến không cần code (Giai đoạn 10)
@@ -56,3 +56,19 @@ Tất cả nằm ở **Cài đặt** (`/settings`). Mục nào cần gói cao h�
 
 ## Biến môi trường liên quan
 `BASE_DOMAIN`, `CUSTOM_DOMAIN_TARGET`, `DOMAIN_CHECK_KEY`.
+
+## Tầng 4: extension bằng code (Giai đoạn 11)
+
+Chỉ dùng khi tầng 1–3 không đáp ứng được. Extension là code của nhà cung cấp (tin cậy), nằm ở `extensions/<ma-khach-hang>/`, KHÔNG bao giờ sửa lõi theo khách.
+
+**Tạo mới:** `pnpm ext:new <ma> "<Tên>"` (sao chép `extensions/_template`, tự chạy `ext:sync`). Mẫu hoàn chỉnh: `extensions/demo-weekend` (phụ thu cuối tuần + báo cáo + trang + tác vụ nền).
+
+**Khai báo** bằng `defineExtension({ manifest, configSchema, hooks, reports, pages, jobs, migrations })` từ `@rentpro/extension-sdk` (extension chỉ được import SDK):
+- `manifest.sdk`: dải phiên bản SDK tương thích (`^1.0`, `1.x`, `>=1.0`). Bản triển khai không khớp thì extension bị bỏ qua và báo rõ lý do (`pnpm ext:check`).
+- Móc (hook): `pricing.adjust` và `deposit.adjust` (đồng bộ, trả điều chỉnh giá/cọc), `booking.beforeCreate` (có thể từ chối bằng `ExtensionVeto`), `booking.afterConfirm`, `handover.afterReturn`, `notify.beforeSend`, `contract.variables` (biến `{{ext.*}}` trong mẫu). Móc `required: true` mà lỗi thì thao tác thất bại; còn lại lỗi/quá 2 giây chỉ ghi `extension_error_log` và bỏ qua.
+- Dữ liệu: kho khóa-giá trị `ctx.store`, đọc SQL chỉ-SELECT `ctx.read.query` (RLS vẫn áp dụng), cấu hình `ctx.config` (kiểm theo zod). Cần bảng riêng: `migrations` chỉ được tạo bảng `ext_<ma>_*` có `tenant_id` + RLS; áp bằng `DATABASE_ADMIN_URL=… pnpm ext:migrate`.
+- Báo cáo (`ext.<ma>.<khoa>`), trang (`/ext/<ma>/<đường dẫn>`, mô tả bằng dữ liệu `ReportResult`), tác vụ nền (`everyMinutes` hoặc `dailyAt`).
+
+**Bật cho khách:** cổng quản trị → cửa hàng → mục "Extension" (cần tính năng `extensions` trong gói hoặc ghi đè). Cửa hàng chỉ xem ở `/settings/extensions`.
+
+**Kiểm thử:** `createTestContext` trong `@rentpro/extension-sdk/testing`. **Nâng cấp SDK:** tăng minor là tương thích ngược; đổi major phải cập nhật `manifest.sdk` của từng extension sau khi chạy `pnpm ext:check`.

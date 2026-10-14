@@ -1,3 +1,4 @@
+import './extensions.generated'; // đăng ký extension lúc build (file sinh bởi pnpm ext:sync)
 import { pruneJobRuns, runAllJobs, type JobDeps } from '@rentpro/db';
 import { depsFromEnv } from './config';
 

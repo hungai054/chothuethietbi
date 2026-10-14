@@ -193,12 +193,18 @@ importers:
       '@node-rs/argon2':
         specifier: ^2.0.2
         version: 2.2.2
+      '@rentpro-ext/demo-weekend':
+        specifier: workspace:*
+        version: link:../../extensions/demo-weekend
       '@rentpro/core':
         specifier: workspace:*
         version: link:../../packages/core
       '@rentpro/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@rentpro/extension-sdk':
+        specifier: workspace:*
+        version: link:../../packages/extension-sdk
       '@rentpro/tenancy':
         specifier: workspace:*
         version: link:../../packages/tenancy
@@ -233,12 +239,18 @@ importers:
       '@node-rs/argon2':
         specifier: ^2.0.2
         version: 2.2.2
+      '@rentpro-ext/demo-weekend':
+        specifier: workspace:*
+        version: link:../../extensions/demo-weekend
       '@rentpro/core':
         specifier: workspace:*
         version: link:../../packages/core
       '@rentpro/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@rentpro/extension-sdk':
+        specifier: workspace:*
+        version: link:../../packages/extension-sdk
       '@rentpro/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
@@ -288,12 +300,18 @@ importers:
 
   apps/worker:
     dependencies:
+      '@rentpro-ext/demo-weekend':
+        specifier: workspace:*
+        version: link:../../extensions/demo-weekend
       '@rentpro/core':
         specifier: workspace:*
         version: link:../../packages/core
       '@rentpro/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@rentpro/extension-sdk':
+        specifier: workspace:*
+        version: link:../../packages/extension-sdk
       '@rentpro/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
@@ -316,12 +334,18 @@ importers:
       '@playwright/test':
         specifier: ^1.52.0
         version: 1.64.0
+      '@rentpro-ext/demo-weekend':
+        specifier: workspace:*
+        version: link:../extensions/demo-weekend
       '@rentpro/core':
         specifier: workspace:*
         version: link:../packages/core
       '@rentpro/db':
         specifier: workspace:*
         version: link:../packages/db
+      '@rentpro/extension-sdk':
+        specifier: workspace:*
+        version: link:../packages/extension-sdk
       '@types/pg':
         specifier: ^8.11.0
         version: 8.23.1
@@ -331,6 +355,24 @@ importers:
       pg:
         specifier: ^8.13.0
         version: 8.23.1
+
+  extensions/_template:
+    dependencies:
+      '@rentpro/extension-sdk':
+        specifier: workspace:*
+        version: link:../../packages/extension-sdk
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+
+  extensions/demo-weekend:
+    dependencies:
+      '@rentpro/extension-sdk':
+        specifier: workspace:*
+        version: link:../../packages/extension-sdk
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
 
   packages/config:
     devDependencies:

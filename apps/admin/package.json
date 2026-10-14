@@ -12,8 +12,10 @@
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
+    "@rentpro-ext/demo-weekend": "workspace:*",
     "@rentpro/core": "workspace:*",
     "@rentpro/db": "workspace:*",
+    "@rentpro/extension-sdk": "workspace:*",
     "@rentpro/tenancy": "workspace:*",
     "next": "^15.3.0",
     "pg": "^8.13.0",

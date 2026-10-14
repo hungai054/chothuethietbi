@@ -57,7 +57,7 @@ export class ExtensionVeto extends Error {
 type Maybe<T> = T | Promise<T>;
 export interface Hooks {
   /** Thêm dòng điều chỉnh giá (có nhãn rõ ràng). Không sửa được dòng gốc. */
-  'pricing.adjust': (ctx: ExtensionContext, quote: Quote) => Adjustment[];
+  'pricing.adjust': (ctx: ExtensionContext, quote: Quote, info: { start: Date; end: Date }) => Adjustment[];
   /** Trả mức cọc (đồng, số nguyên ≥ 0) thay cho mức gợi ý theo cấu hình. */
   'deposit.suggest': (ctx: ExtensionContext, c: DepositContext & { suggested: number }) => number;
   'booking.beforeCreate': (ctx: ExtensionContext, b: BookingDraft) => Maybe<void>;
@@ -283,3 +283,5 @@ export async function withTimeout<T>(fn: () => Promise<T> | T, ms = HOOK_TIMEOUT
     if (timer) clearTimeout(timer);
   }
 }
+
+export * from './testing';

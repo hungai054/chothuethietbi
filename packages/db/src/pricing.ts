@@ -163,7 +163,7 @@ export async function quoteForCustomer(ctx: ServiceCtx, req: QuoteRequest): Prom
   const discount: Discount | null = req.discount ?? (groupDiscount > 0 ? { type: 'PERCENT', value: groupDiscount, label: `Nhóm ${groupName}: giảm ${groupDiscount}%` } : null);
   try {
     let quote = quoteRental({ lines, start: req.start, end: req.end, config, discount, deliveryFee: req.deliveryFee });
-    quote = applyPricingHook(quote, ctx.pricingHook, config);
+    quote = applyPricingHook(quote, ctx.pricingHook, config, { start: req.start, end: req.end });
     return { quote, priceListName: listName, groupName, usedFallbackFor: fallback, pricingInput: { lines, config, discount, deliveryFee: req.deliveryFee } };
   } catch (e) {
     if (e instanceof PricingError) throw new ValidationError(e.message);

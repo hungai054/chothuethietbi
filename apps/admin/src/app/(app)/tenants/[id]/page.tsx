@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import {
-  changePlan, getTenantDetail, getTenantPlanFeatures, listAudit, listPlans, listSupportAccess, PlatformError,
+  changePlan, getTenantDetail, getTenantPlanFeatures, listAudit, listExtensionErrors, listPlans, listSupportAccess, listTenantExtensionsAdmin, PlatformError, setTenantExtension,
   setFeatureOverrides, setLimitOverrides, setTenantNotes, setTenantStatus, startImpersonation, SETTABLE_STATUSES,
 } from '@rentpro/db';
 import { FEATURE_KEYS, LIMIT_KEYS } from '@rentpro/tenancy';
@@ -28,8 +28,8 @@ export default async function TenantPage({ params, searchParams }: {
   await requireCan('tenant.view');
   const tenant = await getTenantDetail(db(), id);
   if (!tenant) notFound();
-  const [plans, planFeatures, access, audit, flash] = await Promise.all([
-    listPlans(db()), getTenantPlanFeatures(db(), id), listSupportAccess(db(), id), listAudit(db(), id, 15),
+  const [plans, planFeatures, access, audit, extensions, extErrors, flash] = await Promise.all([
+    listPlans(db()), getTenantPlanFeatures(db(), id), listSupportAccess(db(), id), listAudit(db(), id, 15), listTenantExtensionsAdmin(db(), id), listExtensionErrors(db(), id, 10),
     q.created ? readFlash<{ tempPassword: string; email: string }>() : null,
   ]);
 
@@ -60,6 +60,16 @@ export default async function TenantPage({ params, searchParams }: {
       if (typeof o[k] === 'number' && Number.isNaN(o[k])) o[k] = -1;
     }
     await guard(id, () => setLimitOverrides(db(), actorOf(u), id, o));
+  }
+  async function doExtension(code: string, f: FormData) {
+    'use server';
+    const u = await requireCan('tenant.override_features');
+    const raw = String(f.get('config') ?? '').trim();
+    let config: unknown = {};
+    if (raw) {
+      try { config = JSON.parse(raw); } catch { redirect(`/tenants/${id}?error=${encodeURIComponent('Cấu hình phải là JSON hợp lệ.')}`); }
+    }
+    await guard(id, () => setTenantExtension(db(), actorOf(u), id, code, { enabled: f.get('enabled') === 'on', config }));
   }
   async function doNotes(f: FormData) {
     'use server';
@@ -138,6 +148,31 @@ export default async function TenantPage({ params, searchParams }: {
           })}
           <div className="md:col-span-3"><button className="rounded bg-slate-900 px-4 py-2 text-white">Lưu giới hạn</button></div>
         </form>
+      </section>
+
+      <section className={box} data-testid="extensions-section">
+        <h2 className="font-medium">Extension (module mở rộng bằng code)</h2>
+        <p className="text-sm text-slate-500">Chỉ extension đã được cài trong bản triển khai này. Bật cho khách cần gói/ghi đè có tính năng <code>extensions</code>. Cấu hình là JSON, kiểm tra theo schema của extension.</p>
+        {extensions.length === 0 && <p className="text-sm text-slate-500">Chưa cài extension nào (chạy <code>pnpm ext:new</code>).</p>}
+        {extensions.map((x) => (
+          <form key={x.code} action={doExtension.bind(null, x.code)} className="space-y-2 rounded border p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span><b>{x.name}</b> <code className="text-xs text-slate-500">{x.code} v{x.version}</code></span>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="enabled" defaultChecked={x.enabled} /> Bật cho khách này</label>
+            </div>
+            {x.description && <p className="text-sm text-slate-600">{x.description}</p>}
+            <p className="text-xs text-slate-500">Móc: {x.hooks.join(', ') || '—'}{x.enabledBy ? ` · bật bởi ${x.enabledBy}` : ''}</p>
+            {x.compatible && <p className="text-xs text-red-700">{x.compatible}</p>}
+            <textarea name="config" rows={3} defaultValue={JSON.stringify(x.config ?? {}, null, 2)} aria-label={`Cấu hình ${x.code}`} className={`${input} w-full font-mono text-sm`} />
+            <button className="rounded bg-slate-900 px-4 py-2 text-white">Lưu extension</button>
+          </form>
+        ))}
+        {extErrors.length > 0 && (
+          <div>
+            <h3 className="text-sm font-medium">Lỗi extension gần đây (đã được cô lập)</h3>
+            <ul className="text-xs text-slate-600" data-testid="extension-errors">{extErrors.map((e, i) => <li key={i}>{new Date(e.created_at).toLocaleString('vi-VN')} · {e.extension_code} · {e.hook} · {e.message}</li>)}</ul>
+          </div>
+        )}
       </section>
 
       <section className={box}>

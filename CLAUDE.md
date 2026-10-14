@@ -115,3 +115,14 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 - Nhãn chỉ đổi chữ hiển thị (menu, tiêu đề các trang chính); mã, quyền, URL không đổi. Thêm nhãn mới vào `LABEL_DEFAULTS` rồi dùng `tenant.labels` trong giao diện.
 - Dùng Python/shell để sửa file có chuỗi chứa `\r`, `\n`, `\t` rất dễ ghi nhầm ký tự điều khiển thật vào mã: dùng công cụ Edit/Write cho các đoạn đó.
 - Playwright: sau chuyển trang mềm của Next, ô nhập (checkbox, select) GIỮ trạng thái cũ; trước mỗi lần điền form lặp lại hãy `page.goto` trang mới hoặc `setChecked` tường minh. `fetch` trong trang bị cache theo `cache-control`: thêm tham số `?v=` khi cần kiểm tra thay đổi ngay.
+
+## Extension SDK (Giai đoạn 11): quy tắc không được phá
+
+- Extension nằm ở `extensions/<ma>/`, chỉ import `@rentpro/extension-sdk` (+ zod). Đăng ký là LÚC BUILD qua file sinh `apps/{web,admin,worker}/src/extensions.generated.ts` (do `pnpm ext:sync`, đừng sửa tay; chỉ file này được import `@rentpro-ext/*`, ESLint miễn trừ). Thêm/xóa extension xong phải `ext:sync` + `pnpm install` + build lại. Tiến trình test E2E tự đăng ký extension (xem `z-extension.spec.ts`).
+- Bật/tắt theo cửa hàng CHỈ ở cổng quản trị (`setTenantExtension`; role ứng dụng bị thu quyền ghi `tenant_extension`). Cần tính năng `extensions`.
+- Mọi lời gọi extension đi qua `ExtensionHost`: timeout 2 giây, try/catch, ghi `extension_error_log`; từ chối chủ ý dùng `ExtensionVeto`; móc `required` mới làm thao tác thất bại. Lỗi ghi log trong giao dịch bị hủy sẽ mất (trả lại qua `notes`).
+- Móc đồng bộ (`pricing.adjust`, `deposit.adjust`) gộp vào `ctx.pricingHook/depositHook`; hook giá nhận thêm `info {start,end}`. Giá đã chốt trong đơn không đổi theo extension.
+- Migration extension chỉ tạo bảng `ext_<ma-gạch-dưới>_*` có `tenant_id` + RLS + policy `tenant_isolation`; cần kết nối DDL (`DATABASE_ADMIN_URL`); runner ghi checksum, không sửa migration đã áp.
+- `ctx.read.query` chỉ SELECT (kiểm tra, LIMIT 5000, timeout 3 giây). Báo cáo extension khóa `ext.<ma>.<khoa>`; trang extension là dữ liệu `ReportResult`, không phải React.
+- Webhook/tích hợp ngoài để Giai đoạn 12. Test E2E không khẳng định số tiền cố định (cấu hình dùng chung của tenant bị z-customization đổi, ví dụ VAT): so sánh với mức nền đo trước.
+- Sửa file qua script `node` heredoc dễ mất dấu `\`: dùng Edit/Write.

@@ -18,6 +18,7 @@ export default async function SettingsHub() {
     { href: '/settings/labels', title: 'Nhãn và thuật ngữ', desc: 'Đổi tên gọi: "Thiết bị" thành "Sản phẩm", "Đơn thuê" thành "Booking"…', show: manage },
     { href: '/settings/custom-fields', title: 'Trường tùy chỉnh', desc: 'Thêm trường riêng cho thiết bị, khách hàng, đơn thuê, hợp đồng.', show: manage, locked: !f.custom_fields },
     { href: '/settings/branding', title: 'Thương hiệu (white-label)', desc: 'Logo, màu chủ đạo, favicon, tên hiển thị, chân trang, ẩn thương hiệu RentPro.', show: manage, locked: !f.white_label },
+    { href: '/settings/extensions', title: 'Extension', desc: 'Module mở rộng đang bật cho cửa hàng của bạn (do nhà cung cấp cài đặt).', show: manage && f.extensions },
     { href: '/settings/users', title: 'Người dùng', desc: 'Thêm nhân viên, đổi vai trò, khóa tài khoản, đặt lại mật khẩu.', show: permissions.has('users.manage') },
     { href: '/settings/roles', title: 'Vai trò tùy chỉnh', desc: 'Tự tạo vai trò với ma trận quyền chi tiết.', show: permissions.has('roles.manage'), locked: !f.custom_roles },
     { href: '/settings/domains', title: 'Tên miền riêng', desc: 'Dùng tên miền của cửa hàng thay vì địa chỉ mặc định.', show: manage, locked: !f.custom_domain },
