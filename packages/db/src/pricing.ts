@@ -1,6 +1,6 @@
 import {
   PRICING_SETTINGS_VERSION, PricingError, PricingSettingsSchema, applyPricingHook, firstZodMessage, quoteRental, resolvePricingConfig, upgradePricingSettings,
-  validateRule, type Discount, type PriceRule, type PricingSettings, type Quote,
+  validateRule, type Discount, type PriceRule, type PricingSettings, type Quote, type QuoteInput,
 } from '@rentpro/core';
 import { NotFoundError, ValidationError, audit, guard, type ServiceCtx } from './service';
 import { assertCustomerCanRent } from './customers';
@@ -110,7 +110,9 @@ export interface QuoteRequest {
   deliveryFee?: number;
 }
 
-export interface QuoteResult { quote: Quote; priceListName: string; groupName: string | null; usedFallbackFor: string[] }
+/** Dữ liệu đầu vào đã chốt của một báo giá (không gồm thời gian), lưu cùng đơn để gia hạn/trả sớm giữ nguyên bảng giá đã báo cho khách. */
+export type PricingInput = Pick<QuoteInput, 'lines' | 'config' | 'discount' | 'deliveryFee'>;
+export interface QuoteResult { quote: Quote; priceListName: string; groupName: string | null; usedFallbackFor: string[]; pricingInput: PricingInput }
 
 /**
  * Báo giá: chọn bảng giá theo nhóm khách (nếu có), mẫu nào thiếu giá thì dùng bảng mặc định.
@@ -162,7 +164,7 @@ export async function quoteForCustomer(ctx: ServiceCtx, req: QuoteRequest): Prom
   try {
     let quote = quoteRental({ lines, start: req.start, end: req.end, config, discount, deliveryFee: req.deliveryFee });
     quote = applyPricingHook(quote, ctx.pricingHook, config);
-    return { quote, priceListName: listName, groupName, usedFallbackFor: fallback };
+    return { quote, priceListName: listName, groupName, usedFallbackFor: fallback, pricingInput: { lines, config, discount, deliveryFee: req.deliveryFee } };
   } catch (e) {
     if (e instanceof PricingError) throw new ValidationError(e.message);
     throw e;

@@ -6,3 +6,5 @@ export * from './inventory';
 export * from './customers';
 export * from './pricing';
 export * from './storage';
+export * from './booking';
+export * from './booking-queries';
