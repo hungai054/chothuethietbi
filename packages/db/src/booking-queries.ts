@@ -1,3 +1,4 @@
+import { searchableKeys } from './customization';
 import { localDateKey, quantityFree, zonedTimeToUtc, type BookingStatus, type Range } from '@rentpro/core';
 import { ACTIVE_ALLOC, releaseExpiredHolds, tzOf } from './booking';
 import { NotFoundError, ValidationError, guard, type ServiceCtx } from './service';
@@ -19,10 +20,11 @@ export async function listBookings(ctx: ServiceCtx, f: BookingFilter = {}): Prom
   const q = f.q?.trim() || null;
   const digits = q ? q.replace(/\D/g, '') : '';
   const where = `b.deleted_at IS NULL
-    AND ($1::text IS NULL OR b.code ILIKE '%' || $1 || '%' OR c.name ILIKE '%' || $1 || '%' OR ($2 <> '' AND c.phone LIKE '%' || $2 || '%'))
+    AND ($1::text IS NULL OR b.code ILIKE '%' || $1 || '%' OR c.name ILIKE '%' || $1 || '%' OR ($2 <> '' AND c.phone LIKE '%' || $2 || '%')
+         OR EXISTS (SELECT 1 FROM jsonb_each_text(b.custom_fields) e WHERE e.key = ANY($7::text[]) AND e.value ILIKE '%' || $1 || '%'))
     AND ($3::text IS NULL OR b.status = $3) AND ($4::timestamptz IS NULL OR b.ends_at >= $4) AND ($5::timestamptz IS NULL OR b.starts_at < $5)
     AND ($6::uuid IS NULL OR b.customer_id = $6)`;
-  const args = [q, digits, f.status || null, f.from ?? null, f.to ?? null, f.customerId ?? null];
+  const args = [q, digits, f.status || null, f.from ?? null, f.to ?? null, f.customerId ?? null, await searchableKeys(ctx, 'BOOKING')];
   const total = (await ctx.db.query(`SELECT count(*)::int AS n FROM booking b JOIN customer c ON c.id=b.customer_id WHERE ${where}`, args)).rows[0].n;
   const { rows } = await ctx.db.query(
     `SELECT b.id, b.code, b.status, b.customer_id, c.name AS customer_name, b.starts_at, b.ends_at, b.total, b.hold_expires_at

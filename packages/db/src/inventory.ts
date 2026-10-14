@@ -1,3 +1,4 @@
+import { searchableKeys } from './customization';
 import {
   DEFAULT_BARCODE_PATTERN, assertTransition, diffStocktake, formatBarcode, isValidBarcode, normalizeScan,
   readWorkbook, validateImportRows, buildUnitsExport, renderLabelSheet, DEFAULT_LABEL, UNIT_STATUS_LABEL,
@@ -172,10 +173,11 @@ export async function listUnits(ctx: ServiceCtx, f: UnitFilter = {}): Promise<{ 
   const pageSize = Math.min(Math.max(f.pageSize ?? 25, 1), 200);
   const offset = (Math.max(f.page ?? 1, 1) - 1) * pageSize;
   const where = `u.deleted_at IS NULL
-    AND ($1::text IS NULL OR u.barcode ILIKE '%' || $1 || '%' OR u.serial ILIKE '%' || $1 || '%' OR m.name ILIKE '%' || $1 || '%')
+    AND ($1::text IS NULL OR u.barcode ILIKE '%' || $1 || '%' OR u.serial ILIKE '%' || $1 || '%' OR m.name ILIKE '%' || $1 || '%'
+         OR EXISTS (SELECT 1 FROM jsonb_each_text(u.custom_fields) e WHERE e.key = ANY($6::text[]) AND e.value ILIKE '%' || $1 || '%'))
     AND ($2::text IS NULL OR u.status = $2) AND ($3::uuid IS NULL OR u.model_id = $3)
     AND ($4::uuid IS NULL OR m.category_id = $4) AND ($5::uuid IS NULL OR u.branch_id = $5)`;
-  const args = [f.q || null, f.status || null, f.modelId || null, f.categoryId || null, f.branchId || null];
+  const args = [f.q || null, f.status || null, f.modelId || null, f.categoryId || null, f.branchId || null, await searchableKeys(ctx, 'UNIT')];
   const total = (await ctx.db.query(`SELECT count(*)::int AS n FROM equipment_unit u JOIN equipment_model m ON m.id=u.model_id WHERE ${where}`, args)).rows[0].n;
   const { rows } = await ctx.db.query(
     `SELECT u.id, u.barcode, u.serial, u.status, u.model_id, m.name AS model_name, c.name AS category_name, u.branch_id, b.name AS branch_name, u.condition

@@ -1,3 +1,4 @@
+import { searchableKeys } from './customization';
 import {
   CustomerInputSchema, ID_DOC_TYPES, ID_IMAGE_MAX_BYTES, PRIVACY_CONSENT_VERSION, firstZodMessage, idLast4, normalizeIdNumber, normalizePhoneVN, sniffImage,
   type CustomerInput, type IdDocType,
@@ -85,9 +86,10 @@ export async function listCustomers(ctx: ServiceCtx, f: CustomerFilter = {}): Pr
   const digits = q ? q.replace(/\D/g, '') : '';
   const where = `c.deleted_at IS NULL AND c.anonymized_at IS NULL
     AND ($1::text IS NULL OR c.name ILIKE '%' || $1 || '%' OR c.company_name ILIKE '%' || $1 || '%' OR c.email ILIKE '%' || $1 || '%'
-         OR ($2 <> '' AND c.phone LIKE '%' || $2 || '%'))
+         OR ($2 <> '' AND c.phone LIKE '%' || $2 || '%')
+         OR EXISTS (SELECT 1 FROM jsonb_each_text(c.custom_fields) e WHERE e.key = ANY($5::text[]) AND e.value ILIKE '%' || $1 || '%'))
     AND ($3::boolean IS NULL OR c.blacklisted = $3) AND ($4::uuid IS NULL OR c.group_id = $4)`;
-  const args = [q, digits, f.blacklisted ?? null, f.groupId ?? null];
+  const args = [q, digits, f.blacklisted ?? null, f.groupId ?? null, await searchableKeys(ctx, 'CUSTOMER')];
   const total = (await ctx.db.query(`SELECT count(*)::int AS n FROM customer c WHERE ${where}`, args)).rows[0].n;
   const { rows } = await ctx.db.query(`SELECT ${SELECT} WHERE ${where} ORDER BY c.name LIMIT ${pageSize} OFFSET ${offset}`, args);
   return { total, rows: rows.map(toRow) };

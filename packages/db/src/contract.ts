@@ -1,7 +1,9 @@
 import {
-  DEFAULT_CONTRACT_PATTERN, buildContractContent, formatDocNumber, ID_DOC_LABEL, localDateKey, sniffImage,
+  DEFAULT_CONTRACT_PATTERN, buildContractContent, contractExtras, formatFieldValue, formatDocNumber, ID_DOC_LABEL, localDateKey, sniffImage,
   type ContractContent, type IdDocType,
 } from '@rentpro/core';
+import { renderContractTerms } from './contract-text';
+import { getDocTemplates, listFieldDefs, validateFieldValues } from './customization';
 import { rawFinanceSettings, storePhoto } from './finance';
 import { NotFoundError, ValidationError, audit, guard, need, type ServiceCtx } from './service';
 import { assertTenantPath } from './storage';
@@ -31,7 +33,7 @@ const toRow = (r: Row): ContractRow => ({
 });
 
 /** Lập hợp đồng từ đơn đã xác nhận. Nội dung được chụp lại (không đổi khi dữ liệu sau này thay đổi). */
-export async function createContract(ctx: ServiceCtx, bookingId: string): Promise<string> {
+export async function createContract(ctx: ServiceCtx, bookingId: string, customFields: Record<string, unknown> = {}): Promise<string> {
   guard(ctx, 'contract.create', 'contract', { write: true });
   const b = (await ctx.db.query(
     `SELECT b.*, c.name AS cname, c.phone, c.email, c.address, c.type, c.company_name, c.tax_code, c.representative, t.name AS tenant_name
@@ -48,7 +50,22 @@ export async function createContract(ctx: ServiceCtx, bookingId: string): Promis
   const doc = (await ctx.db.query(`SELECT type, number_last4 FROM id_document WHERE customer_id=$1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1`, [b.customer_id])).rows[0];
   const settings = await rawFinanceSettings(ctx);
   const store = settings.store ?? {};
+  const contractValues = await validateFieldValues(ctx, 'CONTRACT', customFields, true);
   const number = await nextContractNumber(ctx);
+  const tpl = (await getDocTemplates(ctx)).resolved.contract;
+  const defs = await listFieldDefs(ctx);
+  const custValues = ((await ctx.db.query('SELECT custom_fields FROM customer WHERE id=$1', [b.customer_id])).rows[0]?.custom_fields ?? {}) as Record<string, unknown>;
+  const bookValues = (b.custom_fields ?? {}) as Record<string, unknown>;
+  const byEntity = (e: string) => defs.filter((d) => d.entity === e);
+  const extras = [...contractExtras(byEntity('CUSTOMER'), custValues), ...contractExtras(byEntity('BOOKING'), bookValues), ...contractExtras(byEntity('CONTRACT'), contractValues)];
+  const vars: Record<string, string> = {
+    ten_cua_hang: store.name || b.tenant_name, ten_khach: b.cname, ma_don: b.code, so_hop_dong: number, tong_tien: `${new Intl.NumberFormat('vi-VN').format(Number(b.total))} đ`,
+    tien_coc: `${new Intl.NumberFormat('vi-VN').format(Number(b.deposit_required))} đ`,
+    ngay_bat_dau: new Intl.DateTimeFormat('vi-VN', { timeZone: ctx.timezone ?? 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' }).format(b.starts_at),
+    ngay_ket_thuc: new Intl.DateTimeFormat('vi-VN', { timeZone: ctx.timezone ?? 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' }).format(b.ends_at),
+  };
+  for (const [e, vals] of [['CUSTOMER', custValues], ['BOOKING', bookValues], ['CONTRACT', contractValues]] as const)
+    for (const d of byEntity(e)) vars[`cf.${d.key}`] = formatFieldValue(d, vals[d.key]);
 
   const content = buildContractContent({
     number, date: new Date(), timeZone: ctx.timezone ?? 'Asia/Ho_Chi_Minh',
@@ -59,10 +76,10 @@ export async function createContract(ctx: ServiceCtx, bookingId: string): Promis
     },
     booking: { code: b.code, start: b.starts_at, end: b.ends_at },
     items: lines.map((l) => ({ name: l.name, qty: l.qty, units: units.filter((u) => u.booking_line_id === l.id).map((u) => u.barcode), lineTotal: Number(l.line_total) })),
-    rentTotal: Number(b.total), depositRequired: Number(b.deposit_required),
+    rentTotal: Number(b.total), depositRequired: Number(b.deposit_required), title: tpl.title, terms: renderContractTerms(tpl.terms, vars), extras,
   });
-  const r = await ctx.db.query('INSERT INTO contract(tenant_id,booking_id,number,content,created_by) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-    [ctx.tenantId, bookingId, number, JSON.stringify(content), ctx.userId]);
+  const r = await ctx.db.query('INSERT INTO contract(tenant_id,booking_id,number,content,created_by,custom_fields) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+    [ctx.tenantId, bookingId, number, JSON.stringify(content), ctx.userId, JSON.stringify(contractValues)]);
   await audit(ctx, 'contract.create', 'booking', bookingId, { contractId: r.rows[0].id, number });
   return r.rows[0].id;
 }

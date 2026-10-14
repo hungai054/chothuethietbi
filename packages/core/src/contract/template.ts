@@ -13,6 +13,10 @@ export interface ContractInput {
   number: string; date: Date; timeZone: string; store: ContractStore; customer: ContractCustomer;
   booking: { code: string; start: Date; end: Date }; items: ContractItem[];
   rentTotal: number; depositRequired: number; terms?: string[];
+  /** Tiêu đề do cửa hàng đặt (mặc định "HỢP ĐỒNG CHO THUÊ THIẾT BỊ") */
+  title?: string;
+  /** Trường tùy chỉnh được chèn vào hợp đồng */
+  extras?: { label: string; value: string }[];
 }
 
 export interface ContractContent {
@@ -21,6 +25,7 @@ export interface ContractContent {
   booking: { code: string; startText: string; endText: string }; items: ContractItem[];
   money: { rentTotal: number; rentWords: string; depositRequired: number; depositWords: string | null };
   terms: string[];
+  extras?: { label: string; value: string }[];
 }
 
 export const DEFAULT_CONTRACT_PATTERN = 'HD-{year}-{seq:5}';
@@ -44,7 +49,7 @@ const fmtDay = (d: Date, tz: string) => new Intl.DateTimeFormat('vi-VN', { timeZ
 export function buildContractContent(i: ContractInput): ContractContent {
   return {
     v: 1,
-    title: 'HỢP ĐỒNG CHO THUÊ THIẾT BỊ',
+    title: i.title ?? 'HỢP ĐỒNG CHO THUÊ THIẾT BỊ',
     number: i.number,
     dateText: fmtDay(i.date, i.timeZone),
     store: i.store,
@@ -56,5 +61,6 @@ export function buildContractContent(i: ContractInput): ContractContent {
       depositRequired: i.depositRequired, depositWords: i.depositRequired > 0 ? vndInWords(i.depositRequired) : null,
     },
     terms: [...(i.terms ?? DEFAULT_TERMS)],
+    ...(i.extras && i.extras.length ? { extras: i.extras } : {}),
   };
 }
