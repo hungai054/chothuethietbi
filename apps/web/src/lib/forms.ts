@@ -35,3 +35,18 @@ export function parseAccessories(v: FormDataEntryValue | null): { name: string; 
   }
   return out;
 }
+
+/**
+ * Giá trị trường tùy chỉnh từ form (ô tên `cf_<mã>`). Ô chọn có/không dùng cặp `cfb_<mã>` (luôn gửi) + `cf_<mã>` (chỉ gửi khi được chọn)
+ * để phân biệt "bỏ chọn" với "không có trong form". Trường tệp đính kèm xử lý riêng (không đi qua đây).
+ */
+export function readCustomForm(f: FormData, defs: { key: string; kind: string }[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const d of defs) {
+    if (d.kind === 'FILE') continue;
+    if (d.kind === 'BOOLEAN') {
+      if (f.has(`cfb_${d.key}`)) { const v = String(f.get(`cf_${d.key}`) ?? ''); out[d.key] = v === 'on' || v === 'true' ? true : v === 'false' ? false : false; }
+    } else if (f.has(`cf_${d.key}`)) out[d.key] = String(f.get(`cf_${d.key}`) ?? '');
+  }
+  return out;
+}

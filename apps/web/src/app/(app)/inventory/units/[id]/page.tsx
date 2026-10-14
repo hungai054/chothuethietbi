@@ -1,3 +1,4 @@
+import { CustomFieldsPanel } from '@/components/custom-fields';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { SYSTEM_ONLY, UNIT_STATUS_LABEL, nextStatuses, type UnitStatus } from '@rentpro/core';
@@ -42,6 +43,7 @@ export default async function UnitPage({ params, searchParams }: { params: Promi
   return (
     <div className="space-y-4">
       <Link href="/inventory" className="text-sm underline">← Danh sách</Link>
+
       <div className={card}>
         <h1 className="text-xl font-semibold"><span className="font-mono">{unit.barcode}</span> · {unit.model_name}</h1>
         <p className="mt-1 text-sm text-slate-600">Trạng thái: <b>{UNIT_STATUS_LABEL[status]}</b> · Serial: {unit.serial ?? '—'} · Tình trạng: {unit.condition}</p>
@@ -74,6 +76,7 @@ export default async function UnitPage({ params, searchParams }: { params: Promi
           ))}
         </ul>
       </div>
+      <CustomFieldsPanel entity="UNIT" id={id} back={`/inventory/units/${id}`} />
     </div>
   );
 }

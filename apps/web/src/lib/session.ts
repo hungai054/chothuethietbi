@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
-import { IMPERSONATION_PERMISSIONS, permissionsFor, type Permission } from '@rentpro/core';
-import { withTenantId } from '@rentpro/db';
+import { IMPERSONATION_PERMISSIONS, type Permission } from '@rentpro/core';
+import { loadUserAccess, withTenantId } from '@rentpro/db';
 import { auth } from '@/auth';
 import { pool } from './db';
 import { getTenant, type TenantInfo } from './tenant';
@@ -31,10 +31,13 @@ export async function getAppSession(): Promise<AppSession | null> {
       support: { by: row.platform_user_email, expiresAt: row.expires_at },
     };
   }
+  // Quyền đọc lại từ DB mỗi request: khóa tài khoản hoặc đổi vai trò có hiệu lực ngay, không đợi phiên (JWT) hết hạn
+  const access = await withTenantId(pool(), tenant.id, (db) => loadUserAccess(db, session.user.id, tenant.features));
+  if (!access || !access.active) return null;
   return {
     tenant,
-    user: { id: session.user.id, name: session.user.name ?? '', role: session.user.role },
-    permissions: permissionsFor(session.user.role),
+    user: { id: session.user.id, name: session.user.name ?? '', role: access.role },
+    permissions: access.permissions,
     support: null,
   };
 }

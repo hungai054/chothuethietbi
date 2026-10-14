@@ -98,9 +98,11 @@ export async function validateFieldValues(ctx: ServiceCtx, entity: FieldEntity, 
  */
 export async function setCustomValues(ctx: ServiceCtx, entity: FieldEntity, id: string, values: Record<string, unknown>, creating = false): Promise<void> {
   if (!(FIELD_ENTITIES as readonly string[]).includes(entity)) throw new ValidationError('Đối tượng không hợp lệ.');
+  if (Object.keys(values).length === 0 && !can(ctx.features, 'custom_fields')) return; // gói không có trường tùy chỉnh: không có gì để ghi hay bắt buộc
   guard(ctx, WRITE[entity].perm, 'custom_fields', { write: true });
   guard(ctx, WRITE[entity].perm, WRITE[entity].feature, { write: true });
   const defs = await listFieldDefs(ctx, entity);
+  if (defs.length === 0 && Object.keys(values).length === 0) return;
   const fileKeys = new Set(defs.filter((d) => d.kind === 'FILE').map((d) => d.key));
   const sent = Object.fromEntries(Object.entries(values).filter(([k]) => !fileKeys.has(k)));
   if (creating) for (const d of defs) if (d.kind === 'FILE' && d.required) throw new ValidationError(`"${d.label}" là tệp bắt buộc: hãy tạo xong rồi đính kèm tệp ở trang chi tiết (hoặc bỏ yêu cầu bắt buộc).`);
@@ -305,3 +307,13 @@ export async function readBrandAsset(ctx: Pick<ServiceCtx, 'db' | 'tenantId' | '
 }
 
 export { LABEL_DEFAULTS, DEFAULT_DOC_TEMPLATES };
+
+/** Cột trường tùy chỉnh cho danh sách (chỉ trường bật "hiện trong danh sách"): dữ liệu đã định dạng sẵn, dùng thẳng trong bảng. */
+export async function listColumnsData(ctx: ServiceCtx, entity: FieldEntity, ids: string[]): Promise<{ cols: { key: string; label: string }[]; cells: Record<string, Record<string, string>> }> {
+  const defs = (await listFieldDefs(ctx, entity)).filter((d) => d.showInList);
+  if (defs.length === 0 || ids.length === 0) return { cols: [], cells: {} };
+  const vals = await customValuesFor(ctx, entity, ids);
+  const cells: Record<string, Record<string, string>> = {};
+  for (const id of ids) cells[id] = Object.fromEntries(defs.map((d) => [d.key, formatFieldValue(d, vals.get(id)?.[d.key])]));
+  return { cols: defs.map((d) => ({ key: d.key, label: d.label })), cells };
+}

@@ -1,15 +1,15 @@
 'use server';
 
-import { addDepositAsset, addFee, closeBooking, createContract, recordPayment, returnDepositAsset, setDepositRequired, signContract, voidContract, voidFee, voidPayment } from '@rentpro/db';
+import { addDepositAsset, addFee, closeBooking, createContract, listFieldDefs, recordPayment, returnDepositAsset, setDepositRequired, signContract, voidContract, voidFee, voidPayment } from '@rentpro/db';
 import { PAYMENT_METHODS, type FeeKind, type PaymentKind, type PaymentMethod } from '@rentpro/core';
-import { dataUrlBytes, okUrl, parseMoney, photosOf } from '@/lib/forms';
+import { dataUrlBytes, okUrl, parseMoney, photosOf, readCustomForm } from '@/lib/forms';
 import { run, withService } from '@/lib/service';
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? '').trim();
 
-export async function createContractAction(id: string) {
+export async function createContractAction(id: string, f: FormData) {
   const back = `/bookings/${id}`;
-  await run(back, async () => { await withService((c) => createContract(c, id)); return okUrl(back, 'Đã lập hợp đồng.'); });
+  await run(back, async () => { await withService(async (c) => createContract(c, id, readCustomForm(f, await listFieldDefs(c, 'CONTRACT')))); return okUrl(back, 'Đã lập hợp đồng.'); });
 }
 
 export async function signContractAction(id: string, contractId: string, f: FormData) {

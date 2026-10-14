@@ -1,10 +1,11 @@
+import type { ReactNode } from 'react';
 import { TRUST_LABEL, TRUST_LEVELS, type CustomerInput } from '@rentpro/core';
 import { Field, btn, card, input } from '@/components/ui';
 
 type Initial = Partial<Pick<CustomerInput, 'type' | 'name' | 'phone' | 'email' | 'address' | 'zalo' | 'companyName' | 'taxCode' | 'representative' | 'trustLevel' | 'groupId' | 'notes'>>;
 
 /** Form dùng chung cho tạo và sửa khách hàng (server action truyền từ trang). */
-export function CustomerForm({ action, initial = {}, groups, submit }: { action: (f: FormData) => Promise<void>; initial?: Initial; groups: { id: string; name: string }[]; submit: string }) {
+export function CustomerForm({ action, initial = {}, groups, submit, extra }: { action: (f: FormData) => Promise<void>; initial?: Initial; groups: { id: string; name: string }[]; submit: string; extra?: ReactNode }) {
   return (
     <form action={action} className={`${card} space-y-3`}>
       <div className="grid gap-3 md:grid-cols-2">
@@ -24,6 +25,7 @@ export function CustomerForm({ action, initial = {}, groups, submit }: { action:
         <Field label="Người đại diện"><input name="representative" defaultValue={initial.representative} className={input} /></Field>
       </fieldset>
       <Field label="Ghi chú"><textarea name="notes" rows={2} defaultValue={initial.notes} className={input} /></Field>
+      {extra}
       <button className={btn}>{submit}</button>
     </form>
   );

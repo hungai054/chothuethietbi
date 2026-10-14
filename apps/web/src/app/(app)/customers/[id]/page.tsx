@@ -1,3 +1,4 @@
+import { CustomFieldsPanel } from '@/components/custom-fields';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ID_DOC_LABEL, ID_DOC_TYPES, PRIVACY_CONSENT_VERSION, TRUST_LABEL, type IdDocType } from '@rentpro/core';
@@ -80,6 +81,8 @@ export default async function CustomerPage({ params, searchParams }: { params: P
       {anonymized ? <p className="rounded bg-slate-100 p-4 text-sm">Khách hàng này đã được ẩn danh theo yêu cầu. Chỉ còn lại dữ liệu đơn thuê để đối soát.</p> : (
         <>
           {canManage && <CustomerForm action={save} groups={groups} submit="Lưu thay đổi" initial={{ ...c, email: c.email ?? '', address: c.address ?? '', zalo: c.zalo ?? '', companyName: c.companyName ?? '', taxCode: c.taxCode ?? '', representative: c.representative ?? '', notes: c.notes ?? '', groupId: c.groupId ?? '' }} />}
+
+          <CustomFieldsPanel entity="CUSTOMER" id={id} back={back} />
 
           <section className={`${card} space-y-3`} aria-labelledby="docs">
             <h2 id="docs" className="font-medium">Giấy tờ tùy thân</h2>

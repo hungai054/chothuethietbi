@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { UNIT_LABEL, utcToZonedInput, zonedTimeToUtc, type Discount } from '@rentpro/core';
-import { ValidationError, availability, createBooking, listCustomers, listModels, quoteForCustomer, type BookingLineInput, type QuoteResult } from '@rentpro/db';
+import { ValidationError, availability, createBooking, listCustomers, listFieldDefs, listModels, quoteForCustomer, setCustomValues, type BookingLineInput, type QuoteResult } from '@rentpro/db';
+import { CustomFieldInputs } from '@/components/custom-fields';
 import { Field, Notice, btn, btnGhost, card, input } from '@/components/ui';
 import { fmtDateTime, vnd } from '@/lib/format';
 import { isUserError, run, withService } from '@/lib/service';
@@ -40,7 +41,11 @@ async function create(form: FormData) {
       const d = parse(Object.fromEntries(q), s.tenant.timezone);
       if (!d.start || !d.end) throw new ValidationError('Thời gian không hợp lệ.');
       const status = String(form.get('status')) as 'QUOTE' | 'HOLD' | 'CONFIRMED';
-      return createBooking(c, { customerId: d.customerId, lines: d.lines, start: d.start, end: d.end, status, discount: d.discount, deliveryFee: d.deliveryFee, notes: d.notes });
+      const made = await createBooking(c, { customerId: d.customerId, lines: d.lines, start: d.start, end: d.end, status, discount: d.discount, deliveryFee: d.deliveryFee, notes: d.notes });
+      // Trường tùy chỉnh đi cùng địa chỉ (form GET): ghi trong cùng giao dịch để trường bắt buộc không bị bỏ sót
+      const defs = (await listFieldDefs(c, 'BOOKING')).filter((x) => x.kind !== 'FILE');
+      if (defs.length) await setCustomValues(c, 'BOOKING', made.id, Object.fromEntries(defs.map((x) => [x.key, q.get(`cf_${x.key}`) ?? ''])), true);
+      return made;
     });
     return `/bookings/${r.id}?ok=${encodeURIComponent(`Đã tạo đơn ${r.code}.`)}`;
   });
@@ -56,7 +61,7 @@ export default async function NewBooking({ searchParams }: { searchParams: Promi
   const endVal = f.end ?? utcToZonedInput(new Date(hourNow + 24 * 3_600_000), tz);
 
   const data = await withService(async (c) => {
-    const [customers, models] = await Promise.all([listCustomers(c, { pageSize: 200 }), listModels(c)]);
+    const [customers, models, defs] = await Promise.all([listCustomers(c, { pageSize: 200 }), listModels(c), listFieldDefs(c, 'BOOKING')]);
     let quote: QuoteResult | null = null;
     let problems: string[] = [];
     let error = f.error ?? '';
@@ -79,7 +84,7 @@ export default async function NewBooking({ searchParams }: { searchParams: Promi
         error = e.message;
       }
     }
-    return { customers: customers.rows, models, quote, problems, error };
+    return { customers: customers.rows, models, quote, problems, error, defs };
   });
 
   const field = (name: string, def?: string) => f[name] ?? def ?? '';
@@ -119,6 +124,7 @@ export default async function NewBooking({ searchParams }: { searchParams: Promi
           <Field label="Phí giao nhận (VND)"><input name="delivery" type="number" min={0} defaultValue={field('delivery')} className={input} /></Field>
           <Field label="Ghi chú"><input name="notes" defaultValue={field('notes')} className={input} /></Field>
         </div>
+        <CustomFieldInputs defs={data.defs} booleanAsSelect defaults={f} />
         <button className={btnGhost}>Tính giá &amp; kiểm tra lịch</button>
       </form>
 

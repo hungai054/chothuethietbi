@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { UNIT_STATUSES, UNIT_STATUS_LABEL } from '@rentpro/core';
-import { listUnits, listModels } from '@rentpro/db';
+import { listColumnsData, listUnits, listModels } from '@rentpro/db';
 import { Empty, Notice, btn, btnGhost, input } from '@/components/ui';
 import { withService } from '@/lib/service';
 
@@ -10,19 +10,17 @@ const PAGE = 25;
 export default async function InventoryPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; model?: string; page?: string; error?: string; ok?: string }> }) {
   const f = await searchParams;
   const page = Math.max(Number(f.page) || 1, 1);
-  const { units, models, canManage, canLabel } = await withService(async (c, s) => ({
-    units: await listUnits(c, { q: f.q, status: f.status, modelId: f.model, page, pageSize: PAGE }),
-    models: await listModels(c),
-    canManage: s.permissions.has('inventory.manage'),
-    canLabel: s.tenant.features['inventory.barcode'],
-  }));
+  const { units, models, canManage, canLabel, cc, title } = await withService(async (c, s) => {
+    const units = await listUnits(c, { q: f.q, status: f.status, modelId: f.model, page, pageSize: PAGE });
+    return { units, models: await listModels(c), canManage: s.permissions.has('inventory.manage'), canLabel: s.tenant.features['inventory.barcode'], cc: await listColumnsData(c, 'UNIT', units.rows.map((r) => r.id)), title: s.tenant.labels.unit };
+  });
   const pages = Math.max(Math.ceil(units.total / PAGE), 1);
   const qs = (p: number) => new URLSearchParams({ ...(f.q ? { q: f.q } : {}), ...(f.status ? { status: f.status } : {}), ...(f.model ? { model: f.model } : {}), page: String(p) }).toString();
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Thiết bị <span className="text-base font-normal text-slate-500">({units.total})</span></h1>
+        <h1 className="text-2xl font-semibold">{title} <span className="text-base font-normal text-slate-500">({units.total})</span></h1>
         <div className="flex flex-wrap gap-2 text-sm">
           {canManage && <Link className={btn} href="/inventory/units/new">Thêm thiết bị</Link>}
           {canManage && <Link className={btnGhost} href="/inventory/import">Nhập Excel</Link>}
@@ -48,7 +46,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
           <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
             <table className="w-full text-left text-sm">
               <thead className="border-b bg-slate-50 text-slate-500">
-                <tr><th className="w-8 p-3"></th><th>Mã vạch</th><th>Mẫu</th><th>Serial</th><th>Trạng thái</th><th>Chi nhánh</th></tr>
+                <tr><th className="w-8 p-3"></th><th>Mã vạch</th><th>Mẫu</th><th>Serial</th><th>Trạng thái</th><th>Chi nhánh</th>{cc.cols.map((k) => <th key={k.key}>{k.label}</th>)}</tr>
               </thead>
               <tbody>
                 {units.rows.map((u) => (
@@ -59,6 +57,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
                     <td>{u.serial ?? '—'}</td>
                     <td>{UNIT_STATUS_LABEL[u.status]}</td>
                     <td>{u.branchName ?? '—'}</td>
+                    {cc.cols.map((k) => <td key={k.key}>{cc.cells[u.id]?.[k.key] || '—'}</td>)}
                   </tr>
                 ))}
               </tbody>

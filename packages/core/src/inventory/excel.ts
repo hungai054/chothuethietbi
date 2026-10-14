@@ -146,7 +146,7 @@ export function validateImportRows(rows: { row: number; data: RawRow }[], ctx: V
   return { items, errors };
 }
 
-export async function buildUnitsExport(rows: Record<string, string | number | null>[]): Promise<Buffer> {
+export async function buildUnitsExport(rows: Record<string, string | number | null>[], extraColumns: { key: string; label: string }[] = []): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Thiết bị');
   ws.columns = [
@@ -154,8 +154,11 @@ export async function buildUnitsExport(rows: Record<string, string | number | nu
     { header: 'Danh mục', key: 'category', width: 20 }, { header: 'Serial', key: 'serial', width: 20 },
     { header: 'Trạng thái', key: 'status', width: 16 }, { header: 'Chi nhánh', key: 'branch', width: 18 },
     { header: 'Giá nhập', key: 'price', width: 16 }, { header: 'Ngày mua', key: 'purchaseDate', width: 14 },
+    ...extraColumns.map((c) => ({ header: c.label, key: c.key, width: 20 })),
   ];
   ws.getRow(1).font = { bold: true };
-  rows.forEach((r) => ws.addRow(r));
+  // Ô chữ bắt đầu bằng = + - @ bị Excel hiểu là công thức: thêm dấu nháy (dữ liệu tùy chỉnh do người dùng nhập)
+  const safe = (v: string | number | null) => (typeof v === 'string' && v.length > 0 && '=+-@\t\r'.includes(v[0]!) ? `'${v}` : v);
+  rows.forEach((r) => ws.addRow(Object.fromEntries(Object.entries(r).map(([k, v]) => [k, safe(v)]))));
   return Buffer.from(await wb.xlsx.writeBuffer());
 }

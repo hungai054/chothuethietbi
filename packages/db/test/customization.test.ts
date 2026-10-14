@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import ExcelJS from 'exceljs';
 import { startTestDb, type TestDb } from './helpers';
 import { GIF, PNG, mkTenant, runAs, type Opts } from './ctx';
 import {
-  MemoryStorage, ReadOnlyError, addDomain, createBooking, createContract, createCustomRole, createCustomer, createFieldDef, createModel, createUnits, createUser, customValuesFor, deleteCustomRole,
+  MemoryStorage, ReadOnlyError, exportUnits, addDomain, createBooking, createContract, createCustomRole, createCustomer, createFieldDef, createModel, createUnits, createUser, customValuesFor, deleteCustomRole,
   ensureDefaultPriceList, getBranding, getCustomFile, getDocTemplates, getLabels, getContract, listBookings, listCustomRoles, listCustomers, listDomains, listFieldDefs, listUnits, listUsers,
   loadUserAccess, previewContract, readBrandAsset, removeDomain, resolveTenant, searchableKeys, setCustomFile, setCustomValues, setUserPassword, setRule, updateBranding, updateCustomRole,
-  updateDocTemplates, updateFieldDef, updateLabels, updateUser, validateFieldValues, verifyDomain, withTenantId, confirmBooking,
+  sendTestNotification, updateNotifySettings, updateDocTemplates, updateFieldDef, updateLabels, updateUser, validateFieldValues, verifyDomain, withTenantId, confirmBooking,
   type FieldDefInput,
 } from '../src';
-import { DEFAULT_ROLE_PERMISSIONS, ForbiddenError, LABEL_DEFAULTS, type DnsResolver } from '@rentpro/core';
+import { ConsoleProvider, type ProviderConfig } from '@rentpro/notifications';
+import { DEFAULT_REMINDERS, DEFAULT_ROLE_PERMISSIONS, ForbiddenError, LABEL_DEFAULTS, type DnsResolver } from '@rentpro/core';
 import { FEATURE_KEYS, FeatureDisabledError, LimitExceededError, resolveFeatures } from '@rentpro/tenancy';
 
 let t: TestDb;
@@ -163,6 +165,27 @@ describe('trường tùy chỉnh: giá trị', () => {
   });
 });
 
+describe('xuất Excel thiết bị', () => {
+  it('thêm cột trường tùy chỉnh (đã định dạng), chặn công thức từ dữ liệu nhập', async () => {
+    const s = await shop();
+    await as(s.A, {}, (c) => createFieldDef(c, field({ entity: 'UNIT', key: 'vi_tri', label: 'Vị trí kệ' })));
+    await as(s.A, {}, (c) => createFieldDef(c, field({ entity: 'UNIT', key: 'ngay_bh', label: 'Hết bảo hành', kind: 'DATE' })));
+    await as(s.A, {}, (c) => setCustomValues(c, 'UNIT', s.units[0]!.id, { vi_tri: '=HYPERLINK("http://x")', ngay_bh: '2028-02-29' }));
+    const buf = await as(s.A, {}, (c) => exportUnits(c));
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf as never);
+    const ws = wb.getWorksheet('Thiết bị')!;
+    const header = (ws.getRow(1).values as unknown[]).slice(1);
+    expect(header.slice(-2)).toEqual(['Vị trí kệ', 'Hết bảo hành']);
+    const rows = [2, 3].map((r) => (ws.getRow(r).values as unknown[]).slice(1));
+    const filled = rows.find((r) => r[r.length - 1] === '29/02/2028')!;
+    expect(filled[filled.length - 2]).toBe(`'=HYPERLINK("http://x")`); // dấu nháy đầu ô: Excel không chạy thành công thức
+    const empty = rows.find((r) => r !== filled)!;
+    expect(String(empty[empty.length - 1] ?? '')).toBe('');
+    expect(await as(s.A, { off: ['custom_fields'] }, (c) => exportUnits(c)).then(async (b) => { const w = new ExcelJS.Workbook(); await w.xlsx.load(b as never); return (w.getWorksheet('Thiết bị')!.getRow(1).values as unknown[]).length; })).toBe(9); // không còn cột tùy chỉnh khi gói tắt tính năng
+  });
+});
+
 describe('mẫu tài liệu và hợp đồng', () => {
   it('lưu mẫu, kiểm tra biến và số điều khoản, quay về mặc định', async () => {
     const s = await shop();
@@ -277,6 +300,21 @@ describe('nhãn và thương hiệu', () => {
     expect(await read(s.A, true)).toBeNull();
     expect(await read(B.A, false)).toBeNull();
     expect(await withTenantId(t.app, s.A, (db) => readBrandAsset({ db, tenantId: s.A, storage: st, features: resolveFeatures({ planFeatures: { white_label: true }, overrides: {} }) }, 'favicon'))).toBeNull();
+  });
+});
+
+describe('tên người gửi theo thương hiệu', () => {
+  it('email gửi đi dùng tên hiển thị của cửa hàng (gói white-label), làm sạch ký tự nguy hiểm; hạ gói thì bỏ', async () => {
+    const s = await shop();
+    const st = new MemoryStorage();
+    await as(s.A, { storage: st }, (c) => updateBranding(c, { emailFromName: 'Cửa hàng "Sáng" <x>\r\nBcc: a@b.vn' }));
+    await as(s.A, {}, (c) => updateNotifySettings(c, { channels: ['email'], quietHours: { enabled: false, start: '21:00', end: '07:00' }, reminders: DEFAULT_REMINDERS, templates: {}, email: { mode: 'smtp', host: 'smtp.x.vn', port: 587, from: 'shop@x.vn', password: 'pw' }, sms: { mode: 'console' }, zalo: { mode: 'console' } }));
+    const seen: unknown[] = [];
+    const deps = { build: (c: ProviderConfig) => { seen.push(c); return new ConsoleProvider('email'); } };
+    await as(s.A, {}, (c) => sendTestNotification(c, 'email', 'khach@x.vn', deps));
+    expect(seen.at(-1)).toMatchObject({ mode: 'smtp', smtp: { from: '"Cửa hàng Sáng xBcc: a@b.vn" <shop@x.vn>' } }); // dấu ngoặc kép/nhọn và xuống dòng bị loại: không chèn được tiêu đề Bcc
+    await as(s.A, { off: ['white_label'] }, (c) => sendTestNotification(c, 'email', 'khach@x.vn', deps));
+    expect(seen.at(-1)).toMatchObject({ smtp: { from: 'shop@x.vn' } });
   });
 });
 

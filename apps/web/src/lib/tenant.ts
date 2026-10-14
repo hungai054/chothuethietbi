@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { cache } from 'react';
 import { resolveTenant, withTenantId } from '@rentpro/db';
+import { resolveBranding, resolveLabels, type Labels, type ResolvedBranding } from '@rentpro/core';
 import { resolveFeatures, resolveLimits, subdomainOf, type ResolvedFeatures, type Limits } from '@rentpro/tenancy';
 import { pool } from './db';
 
@@ -12,6 +13,8 @@ export interface TenantInfo {
   timezone: string;
   features: ResolvedFeatures;
   limits: Limits;
+  labels: Labels;
+  branding: ResolvedBranding;
 }
 
 const BASE_DOMAIN = process.env.BASE_DOMAIN ?? 'localhost';
@@ -34,15 +37,17 @@ export async function tenantFromHost(host: string): Promise<TenantInfo | null> {
   if (!ref) return null;
   return withTenantId(pool(), ref.id, async (db) => {
     const { rows } = await db.query(
-      `SELECT t.id, t.slug, t.name, t.status, t.timezone, t.feature_overrides, t.limit_overrides, p.features, p.limits
+      `SELECT t.id, t.slug, t.name, t.status, t.timezone, t.settings, t.feature_overrides, t.limit_overrides, p.features, p.limits
        FROM tenant t JOIN plan p ON p.id = t.plan_id`,
     );
     const r = rows[0];
     if (!r) return null;
+    const features = resolveFeatures({ planFeatures: r.features, overrides: r.feature_overrides });
     return {
-      id: r.id, slug: r.slug, name: r.name, status: r.status, timezone: r.timezone,
-      features: resolveFeatures({ planFeatures: r.features, overrides: r.feature_overrides }),
+      id: r.id, slug: r.slug, name: r.name, status: r.status, timezone: r.timezone, features,
       limits: resolveLimits(r.limits, r.limit_overrides),
+      labels: resolveLabels(r.settings?.labels),
+      branding: resolveBranding(r.settings?.branding, features['white_label'] === true),
     };
   });
 }

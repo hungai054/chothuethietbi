@@ -13,11 +13,14 @@ export default async function LoginPage() {
       </main>
     );
   }
+  const b = tenant.branding;
   return (
-    <main className="mx-auto mt-24 w-full max-w-sm rounded-xl bg-white p-6 shadow">
-      <h1 className="text-xl font-semibold">{tenant.name}</h1>
+    <main className="mx-auto mt-24 w-full max-w-sm rounded-xl bg-white p-6 shadow" style={b.displayName || b.hasLogo ? { borderTop: `4px solid ${b.primaryColor}` } : undefined}>
+      {b.hasLogo && <img src="/brand/logo" alt={`Logo ${b.displayName ?? tenant.name}`} className="mb-3 max-h-16" />}
+      <h1 className="text-xl font-semibold" data-testid="login-title">{b.displayName ?? tenant.name}</h1>
       <p className="mb-4 text-sm text-slate-500">Đăng nhập để tiếp tục</p>
       <LoginForm />
+      {!b.hideProductBrand && <p className="mt-4 text-center text-xs text-slate-400">Cung cấp bởi RentPro</p>}
     </main>
   );
 }

@@ -104,3 +104,14 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 - Báo cáo có tiền cần `reports.finance`; nhân viên quầy chỉ có `reports.view` nên chỉ thấy tổng quan (không có thẻ tiền), hiệu suất, tồn kho. ROI cần gói `reports.roi`, hiệu suất/bảo trì/khách hàng cần `reports.advanced`.
 - Xuất Excel: ô chữ bắt đầu bằng `= + - @` được thêm dấu nháy để không thành công thức (dữ liệu khách nhập vào có thể chứa công thức). Mỗi lần xuất ghi `audit_log` action `report.export`.
 - Gợi ý "thanh lý/mua thêm" chỉ là quy tắc ngưỡng đơn giản (`utilizationHint`), ghi rõ trên báo cáo là tham khảo.
+
+## Tùy biến không-code (Giai đoạn 10): quy tắc không được phá
+
+- Cây quyết định chọn tầng tùy biến nằm ở `docs/CUSTOMIZATION.md`. Thêm một dạng tùy biến mới = chọn nơi lưu (settings có schema zod có phiên bản, hoặc bảng có RLS) + service có `guard` + trang trong `/settings` + hiển thị ở trung tâm `/settings`.
+- Trường tùy chỉnh: giá trị luôn đi qua `validateCustomValues` (khóa lạ bị từ chối, trường tắt không nhận). Ghi giá trị trong CÙNG giao dịch với lệnh tạo bản ghi (`withService(async (c) => { const id = await createX(...); await setCustomValues(c, ..., true); })`) để trường bắt buộc không bị bỏ sót. Tệp đính kèm chỉ đổi qua `setCustomFile` (không cho ghi đường dẫn tùy ý qua `setCustomValues`).
+- Tìm kiếm theo trường tùy chỉnh dùng `jsonb_each_text(custom_fields)` giới hạn theo các khóa đang bật "tìm kiếm được"; danh sách thêm cột qua `listColumnsData`.
+- Quyền hiệu lực của người dùng đọc lại từ DB MỖI request (`loadUserAccess`): vai trò tùy chỉnh chỉ có hiệu lực khi gói còn `custom_roles`; tài khoản bị khóa mất quyền ngay. Không cache quyền trong JWT.
+- Logo/favicon: chỉ nhận JPG/PNG/WebP (không SVG), lưu riêng tư, phục vụ công khai qua `/brand/logo|favicon` theo host và chỉ khi gói có `white_label`. Trình duyệt cache 5 phút nên thay logo có độ trễ.
+- Nhãn chỉ đổi chữ hiển thị (menu, tiêu đề các trang chính); mã, quyền, URL không đổi. Thêm nhãn mới vào `LABEL_DEFAULTS` rồi dùng `tenant.labels` trong giao diện.
+- Dùng Python/shell để sửa file có chuỗi chứa `\r`, `\n`, `\t` rất dễ ghi nhầm ký tự điều khiển thật vào mã: dùng công cụ Edit/Write cho các đoạn đó.
+- Playwright: sau chuyển trang mềm của Next, ô nhập (checkbox, select) GIỮ trạng thái cũ; trước mỗi lần điền form lặp lại hãy `page.goto` trang mới hoặc `setChecked` tường minh. `fetch` trong trang bị cache theo `cache-control`: thêm tham số `?v=` khi cần kiểm tra thay đổi ngay.

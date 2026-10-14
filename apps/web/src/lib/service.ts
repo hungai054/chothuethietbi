@@ -10,6 +10,7 @@ import { getTenant, type TenantInfo } from './tenant';
 const g = globalThis as unknown as { __storage?: LocalFsStorage; __ring?: ReturnType<typeof keyRingFromEnv> };
 // Thư mục lưu ảnh giấy tờ nằm NGOÀI thư mục public của web; production thay bằng adapter S3-compatible.
 const storage = () => (g.__storage ??= new LocalFsStorage(process.env.STORAGE_DIR ?? resolve(process.cwd(), '../../.data/storage')));
+export const appStorage = storage;
 const keyRing = () => (g.__ring ??= keyRingFromEnv());
 
 /** Chạy một thao tác nghiệp vụ trong transaction của tenant hiện tại, với quyền/gói của người đăng nhập. */

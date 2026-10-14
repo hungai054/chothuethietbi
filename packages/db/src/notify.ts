@@ -4,6 +4,7 @@ import {
 } from '@rentpro/core';
 import { buildProvider, isEmail, normalizeVnPhone, type NotificationProvider, type ProviderConfig } from '@rentpro/notifications';
 import { can, decryptSecret, encryptSecret, type FeatureKey } from '@rentpro/tenancy';
+import { getBranding } from './customization';
 import { computeLedger, rawFinanceSettings } from './finance';
 import { NotFoundError, ValidationError, audit, guard, type ServiceCtx } from './service';
 
@@ -91,7 +92,10 @@ export async function updateNotifySettings(ctx: ServiceCtx, i: NotifySettingsInp
 // ===== Chọn nhà cung cấp =====
 interface Resolved { provider: NotificationProvider; scope: 'OWN' | 'SHARED' | 'CONSOLE' }
 
-function resolveProvider(ctx: ServiceCtx, s: NotifySettings, ch: Channel, deps: NotifyDeps): Resolved {
+/** Tên người gửi vào tiêu đề email: bỏ ký tự có thể chèn thêm tiêu đề hoặc phá cú pháp địa chỉ. */
+const cleanName = (n: string) => n.replace(/["<>\r\n]/g, '').trim();
+
+function resolveProvider(ctx: ServiceCtx, s: NotifySettings, ch: Channel, deps: NotifyDeps, fromName: string | null = null): Resolved {
   const build = deps.build ?? ((c: ProviderConfig) => buildProvider(c));
   const p = s.providers ?? {};
   const open = (sealed: string | undefined) => {
@@ -108,7 +112,7 @@ function resolveProvider(ctx: ServiceCtx, s: NotifySettings, ch: Channel, deps: 
   }
   if (ch === 'email') {
     const e = p.email!;
-    return { provider: build({ channel: 'email', mode: 'smtp', smtp: { host: e.host!, port: e.port!, secure: e.secure ?? false, user: e.user, pass: open(e.passSealed) || undefined, from: e.from! } }), scope: 'OWN' };
+    return { provider: build({ channel: 'email', mode: 'smtp', smtp: { host: e.host!, port: e.port!, secure: e.secure ?? false, user: e.user, pass: open(e.passSealed) || undefined, from: fromName ? `"${cleanName(fromName)}" <${e.from!}>` : e.from! } }), scope: 'OWN' };
   }
   if (ch === 'sms') {
     const m = p.sms!;
@@ -228,6 +232,7 @@ export async function dispatchQueued(ctx: ServiceCtx, now: Date, deps: NotifyDep
   const out: DispatchResult = { sent: 0, failed: 0, retried: 0, skipped: 0, deferred: 0 };
   const rows = (await ctx.db.query(`SELECT * FROM notification_log WHERE status='QUEUED' AND scheduled_for <= $1 ORDER BY scheduled_for, created_at LIMIT $2 FOR UPDATE SKIP LOCKED`, [now, limit])).rows;
   let usage: number | null = null;
+  const fromName = (await getBranding(ctx)).resolved.emailFromName; // tên người gửi theo thương hiệu (gói white-label)
   const cache = new Map<Channel, Resolved | string>();
   for (const r of rows) {
     const ch = r.channel as Channel;
@@ -244,7 +249,7 @@ export async function dispatchQueued(ctx: ServiceCtx, now: Date, deps: NotifyDep
       continue;
     }
     if (!cache.has(ch)) {
-      try { cache.set(ch, resolveProvider(ctx, s, ch, deps)); } catch (e) { cache.set(ch, (e as Error).message); }
+      try { cache.set(ch, resolveProvider(ctx, s, ch, deps, fromName)); } catch (e) { cache.set(ch, (e as Error).message); }
     }
     const res = cache.get(ch)!;
     if (typeof res === 'string') {
@@ -322,7 +327,7 @@ export async function sendTestNotification(ctx: ServiceCtx, channel: Channel, to
   const dest = to.trim();
   if (channel === 'email' ? !isEmail(dest) : !normalizeVnPhone(dest)) throw new ValidationError(channel === 'email' ? 'Địa chỉ email không hợp lệ.' : 'Số điện thoại không hợp lệ.');
   const s = await rawNotifySettings(ctx);
-  const res = resolveProvider(ctx, s, channel, deps);
+  const res = resolveProvider(ctx, s, channel, deps, (await getBranding(ctx)).resolved.emailFromName);
   const key = `TEST:${crypto.randomUUID()}`;
   const id = await enqueue(ctx, { event: 'TEST', channel, recipient: dest, body: 'Tin nhắn thử từ RentPro. Nếu bạn nhận được tin này, cấu hình gửi tin đã hoạt động.', subject: 'Tin nhắn thử', key });
   const r = await res.provider.send({ channel, to: dest, body: 'Tin nhắn thử từ RentPro. Nếu bạn nhận được tin này, cấu hình gửi tin đã hoạt động.', subject: 'Tin nhắn thử', idempotencyKey: key });

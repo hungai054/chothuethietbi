@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { FEE_KIND_LABEL, FEE_KINDS, PAYMENT_KIND_LABEL, PAYMENT_METHOD_LABEL, PAYMENT_METHODS, PAYMENT_STATUS_LABEL, type PaymentKind } from '@rentpro/core';
-import { ValidationError, bookingLedger, getContract, getHandovers, suggestBookingDeposit, vietQrFor } from '@rentpro/db';
+import { ValidationError, bookingLedger, getContract, getHandovers, listFieldDefs, suggestBookingDeposit, vietQrFor } from '@rentpro/db';
+import { CustomFieldInputs } from '@/components/custom-fields';
 import { SignaturePad } from '@/components/signature-pad';
 import { btn, btnGhost, card, input } from '@/components/ui';
 import { fmtDateTime, vnd } from '@/lib/format';
@@ -22,11 +23,12 @@ export async function FinancePanel({ id, status, tz }: { id: string; status: str
     const showContract = f.contract && has('contract.view');
     const showMoney = f.payments && has('payment.view');
     const contract = showContract ? await getContract(c, id) : null;
+    const contractDefs = showContract ? await listFieldDefs(c, 'CONTRACT') : [];
     const ledger = showMoney ? await bookingLedger(c, id) : null;
     const handovers = await getHandovers(c, id);
     const qr = ledger && f.payments ? await maybe(() => vietQrFor(c, id, ledger.settlement.balanceOwed > 0 ? ledger.settlement.balanceOwed : null)) : null;
     const suggestion = ledger && has('deposit.collect') && f.deposit && ['QUOTE', 'HOLD', 'CONFIRMED'].includes(status) ? await maybe(() => suggestBookingDeposit(c, id)) : null;
-    return { showContract, showMoney, contract, ledger, handovers, qr, suggestion, f, can: { handover: has('booking.handover'), create: has('contract.create'), sign: has('contract.sign'), pay: has('payment.create'), collect: has('deposit.collect'), refund: has('deposit.refund'), depositView: has('deposit.view') } };
+    return { showContract, showMoney, contract, contractDefs, ledger, handovers, qr, suggestion, f, can: { handover: has('booking.handover'), create: has('contract.create'), sign: has('contract.sign'), pay: has('payment.create'), collect: has('deposit.collect'), refund: has('deposit.refund'), depositView: has('deposit.view') } };
   });
   const { contract, ledger, handovers, qr, suggestion, f, can } = d;
   const active = contract?.active ?? null;
@@ -55,7 +57,12 @@ export async function FinancePanel({ id, status, tz }: { id: string; status: str
       {d.showContract && (
         <section className={`${card} space-y-3`} data-testid="contract-section">
           <h2 className="font-medium">Hợp đồng</h2>
-          {!active && can.create && ['CONFIRMED', 'ACTIVE'].includes(status) && <form action={createContractAction.bind(null, id)}><button className={btn}>Lập hợp đồng</button></form>}
+          {!active && can.create && ['CONFIRMED', 'ACTIVE'].includes(status) && (
+            <form action={createContractAction.bind(null, id)} className="space-y-3">
+              <CustomFieldInputs defs={d.contractDefs} />
+              <button className={btn}>Lập hợp đồng</button>
+            </form>
+          )}
           {!active && !['CONFIRMED', 'ACTIVE'].includes(status) && <p className="text-sm text-slate-500">Hợp đồng được lập sau khi đơn được xác nhận.</p>}
           {active && (
             <div className="space-y-3 text-sm">
@@ -149,6 +156,7 @@ export async function FinancePanel({ id, status, tz }: { id: string; status: str
                   <li key={p.id} className={p.voidedAt ? 'text-slate-400 line-through' : ''}>
                     {fmtDateTime(p.paidAt, tz)} · {PAYMENT_KIND_LABEL[p.kind]} · {PAYMENT_METHOD_LABEL[p.method]} · <b>{vnd(p.amount)}</b>{p.reference ? ` · ${p.reference}` : ''}{p.note ? ` · ${p.note}` : ''}
                     {p.voidedAt && <span className="no-underline"> (đã hủy: {p.voidReason})</span>}
+                    <Link className="ml-2 text-xs underline" href={`/bookings/${id}/receipt/${p.id}`}>In phiếu</Link>
                     {!p.voidedAt && can.refund && !closed && (
                       <form action={voidPaymentAction.bind(null, id, p.id)} className="ml-2 inline-flex gap-1"><input name="reason" required placeholder="Lý do hủy" className="rounded border px-1 text-xs" /><button className="text-xs underline">Hủy khoản</button></form>
                     )}

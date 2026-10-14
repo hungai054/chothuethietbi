@@ -4,6 +4,7 @@ import { BOOKING_STATUS_LABEL, UNIT_LABEL, canExtend, canReschedule, nextBooking
 import {
   NotFoundError, ValidationError, availability, cancelBooking, confirmBooking, extendBooking, getBooking, holdBooking, moveBooking, shortenBooking, swapUnit,
 } from '@rentpro/db';
+import { CustomFieldsPanel } from '@/components/custom-fields';
 import { FinancePanel } from './finance-panel';
 import { StatusBadge } from '@/components/booking-status';
 import { Notice, btn, btnGhost, card, input } from '@/components/ui';
@@ -169,6 +170,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
       )}
 
       <FinancePanel id={id} status={b.status} tz={tz} />
+      <CustomFieldsPanel entity="BOOKING" id={id} back={back} />
 
       <section className={card}>
         <h2 className="mb-2 font-medium">Lịch sử</h2>

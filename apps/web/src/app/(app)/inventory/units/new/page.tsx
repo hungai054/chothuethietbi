@@ -1,4 +1,6 @@
-import { createUnits, listBranches, listModels } from '@rentpro/db';
+import { createUnits, listBranches, listFieldDefs, listModels, setCustomValues } from '@rentpro/db';
+import { CustomFieldInputs } from '@/components/custom-fields';
+import { readCustomForm } from '@/lib/forms';
 import { Field, Notice, btn, card, input } from '@/components/ui';
 import { run, withService } from '@/lib/service';
 
@@ -8,19 +10,24 @@ async function addUnits(form: FormData) {
   'use server';
   const s = (k: string) => String(form.get(k) ?? '').trim();
   await run('/inventory/units/new', async () => {
-    const created = await withService((c) => createUnits(c, {
+    const created = await withService(async (c) => {
+      const made = await createUnits(c, {
       modelId: s('modelId'), quantity: Number(s('quantity') || 1), serial: s('serial') || null, barcode: s('barcode') || null,
       branchId: s('branchId') || null, purchaseDate: s('purchaseDate') || null, purchasePrice: s('purchasePrice') ? Number(s('purchasePrice')) : null,
       condition: (s('condition') || 'GOOD') as 'NEW' | 'GOOD' | 'FAIR' | 'POOR',
-    }));
+      });
+      const defs = await listFieldDefs(c, 'UNIT');
+      if (defs.length) for (const u of made) await setCustomValues(c, 'UNIT', u.id, readCustomForm(form, defs), true);
+      return made;
+    });
     return `/inventory?ok=${encodeURIComponent(`Đã tạo ${created.length} thiết bị: ${created.map((x) => x.barcode).slice(0, 5).join(', ')}${created.length > 5 ? '…' : ''}`)}`;
   });
 }
 
 export default async function NewUnit({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const f = await searchParams;
-  const { models, branches } = await withService(async (c) => ({
-    models: (await listModels(c)).filter((m) => m.tracked), branches: await listBranches(c),
+  const { models, branches, defs } = await withService(async (c) => ({
+    models: (await listModels(c)).filter((m) => m.tracked), branches: await listBranches(c), defs: await listFieldDefs(c, 'UNIT'),
   }));
   return (
     <form action={addUnits} className={`${card} mx-auto max-w-xl space-y-3`}>
@@ -37,6 +44,7 @@ export default async function NewUnit({ searchParams }: { searchParams: Promise<
         <Field label="Giá nhập (VND)"><input name="purchasePrice" type="number" min={0} className={input} /></Field>
         <Field label="Tình trạng"><select name="condition" defaultValue="GOOD" className={input}><option value="NEW">Mới</option><option value="GOOD">Tốt</option><option value="FAIR">Khá</option><option value="POOR">Kém</option></select></Field>
       </div>
+      <CustomFieldInputs defs={defs} />
       <button className={btn}>Tạo thiết bị</button>
     </form>
   );

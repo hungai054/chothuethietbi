@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { TRUST_LABEL } from '@rentpro/core';
-import { listCustomers, listGroups } from '@rentpro/db';
+import { listColumnsData, listCustomers, listGroups } from '@rentpro/db';
 import { Empty, Notice, btn, btnGhost, input } from '@/components/ui';
 import { withService } from '@/lib/service';
 
@@ -10,16 +10,16 @@ const PAGE = 25;
 export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; group?: string; bl?: string; page?: string; error?: string; ok?: string }> }) {
   const f = await searchParams;
   const page = Math.max(Number(f.page) || 1, 1);
-  const { list, groups, canManage } = await withService(async (c, s) => ({
-    list: await listCustomers(c, { q: f.q, groupId: f.group || undefined, blacklisted: f.bl === '1' ? true : undefined, page, pageSize: PAGE }),
-    groups: await listGroups(c), canManage: s.permissions.has('customer.manage'),
-  }));
+  const { list, groups, canManage, cc, title } = await withService(async (c, s) => {
+    const list = await listCustomers(c, { q: f.q, groupId: f.group || undefined, blacklisted: f.bl === '1' ? true : undefined, page, pageSize: PAGE });
+    return { list, groups: await listGroups(c), canManage: s.permissions.has('customer.manage'), cc: await listColumnsData(c, 'CUSTOMER', list.rows.map((r) => r.id)), title: s.tenant.labels.customer };
+  });
   const pages = Math.max(Math.ceil(list.total / PAGE), 1);
   const qs = (p: number) => new URLSearchParams({ ...(f.q ? { q: f.q } : {}), ...(f.group ? { group: f.group } : {}), ...(f.bl ? { bl: f.bl } : {}), page: String(p) }).toString();
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Khách hàng <span className="text-base font-normal text-slate-500">({list.total})</span></h1>
+        <h1 className="text-2xl font-semibold">{title} <span className="text-base font-normal text-slate-500">({list.total})</span></h1>
         <div className="flex gap-2 text-sm">
           {canManage && <Link className={btn} href="/customers/new">Thêm khách hàng</Link>}
           <Link className={btnGhost} href="/customers/groups">Nhóm khách</Link>
@@ -37,7 +37,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       {list.rows.length === 0 ? <Empty>Chưa có khách hàng phù hợp.</Empty> : (
         <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="border-b bg-slate-50 text-slate-500"><tr><th className="p-3">Khách hàng</th><th>SĐT</th><th>Loại</th><th>Nhóm</th><th>Mức tin cậy</th></tr></thead>
+            <thead className="border-b bg-slate-50 text-slate-500"><tr><th className="p-3">Khách hàng</th><th>SĐT</th><th>Loại</th><th>Nhóm</th><th>Mức tin cậy</th>{cc.cols.map((k) => <th key={k.key}>{k.label}</th>)}</tr></thead>
             <tbody>
               {list.rows.map((c) => (
                 <tr key={c.id} className="border-b last:border-0">
@@ -48,6 +48,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
                   <td>{c.type === 'COMPANY' ? 'Doanh nghiệp' : 'Cá nhân'}</td>
                   <td>{c.groupName ?? '—'}</td>
                   <td>{TRUST_LABEL[c.trustLevel]}</td>
+                  {cc.cols.map((k) => <td key={k.key}>{cc.cells[c.id]?.[k.key] || '—'}</td>)}
                 </tr>
               ))}
             </tbody>

@@ -1,5 +1,5 @@
-import { searchableKeys } from './customization';
-import {
+import { listFieldDefs, searchableKeys } from './customization';
+import { formatFieldValue,
   DEFAULT_BARCODE_PATTERN, assertTransition, diffStocktake, formatBarcode, isValidBarcode, normalizeScan,
   readWorkbook, validateImportRows, buildUnitsExport, renderLabelSheet, DEFAULT_LABEL, UNIT_STATUS_LABEL,
   type ImportItem, type LabelOptions, type RowError, type UnitStatus,
@@ -295,10 +295,14 @@ export async function exportUnits(ctx: ServiceCtx): Promise<Buffer> {
     `SELECT u.barcode, m.name AS model, c.name AS category, u.serial, u.status, b.name AS branch, u.purchase_price AS price, u.purchase_date::text AS purchase_date
      FROM equipment_unit u JOIN equipment_model m ON m.id=u.model_id LEFT JOIN category c ON c.id=m.category_id LEFT JOIN branch b ON b.id=u.branch_id
      WHERE u.deleted_at IS NULL ORDER BY m.name, u.barcode`);
+  const defs = await listFieldDefs(ctx, 'UNIT');
+  const vals = defs.length ? (await ctx.db.query('SELECT barcode, custom_fields FROM equipment_unit WHERE deleted_at IS NULL')).rows : [];
+  const byBarcode = new Map<string, Record<string, unknown>>(vals.map((v) => [v.barcode as string, v.custom_fields as Record<string, unknown>]));
   return buildUnitsExport(rows.map((r) => ({
     barcode: r.barcode, model: r.model, category: r.category, serial: r.serial, status: UNIT_STATUS_LABEL[r.status as UnitStatus],
     branch: r.branch, price: r.price === null ? null : Number(r.price), purchaseDate: r.purchase_date,
-  })));
+    ...Object.fromEntries(defs.map((d) => [`cf_${d.key}`, formatFieldValue(d, byBarcode.get(r.barcode)?.[d.key])])),
+  })), defs.map((d) => ({ key: `cf_${d.key}`, label: d.label })));
 }
 
 // ===== Kiểm kê =====

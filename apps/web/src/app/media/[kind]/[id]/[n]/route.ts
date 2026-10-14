@@ -1,4 +1,4 @@
-import { getAssetPhoto, getContractSignature, getHandoverPhoto, getOrderPhoto } from '@rentpro/db';
+import { getCustomFile, getAssetPhoto, getContractSignature, getHandoverPhoto, getOrderPhoto } from '@rentpro/db';
 import { isUserError, withService } from '@/lib/service';
 import { getAppSession } from '@/lib/session';
 
@@ -15,6 +15,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ kind: stri
       if (kind === 'asset') return getAssetPhoto(c, id, Number(n) || 0);
       if (kind === 'handover') return getHandoverPhoto(c, id, Number(n) || 0);
       if (kind === 'order-before' || kind === 'order-after') return getOrderPhoto(c, id, kind === 'order-before' ? 'before' : 'after', Number(n) || 0);
+      if (kind.startsWith('field-') && ['unit', 'customer', 'booking', 'contract'].includes(kind.slice(6))) return getCustomFile(c, kind.slice(6).toUpperCase() as 'UNIT', id, n);
       if (kind === 'signature' && (n === 'customer' || n === 'staff')) return getContractSignature(c, id, n);
       throw Object.assign(new Error('x'), { name: 'NotFoundError' });
     });
