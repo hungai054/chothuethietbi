@@ -16,6 +16,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     { href: '/inventory/models', label: 'Mẫu thiết bị', show: tenant.features.inventory && permissions.has('inventory.view') },
     { href: '/bookings', label: 'Đơn thuê', show: tenant.features.booking && permissions.has('booking.view') },
     { href: '/bookings/timeline', label: 'Lịch', show: tenant.features['booking.timeline'] && permissions.has('booking.view') },
+    { href: '/maintenance', label: 'Bảo trì', show: tenant.features.maintenance && permissions.has('maintenance.view') },
     { href: '/deposits', label: 'Sổ cọc', show: tenant.features.deposit && permissions.has('deposit.view') },
     { href: '/settings/finance', label: 'Tài chính', show: tenant.features.payments && permissions.has('settings.manage') },
     { href: '/notifications', label: 'Tin nhắn', show: tenant.features['notify.email'] && permissions.has('notification.view') },

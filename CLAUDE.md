@@ -86,3 +86,12 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 - `releaseExpiredHolds` dùng đồng hồ DB (`now()`), còn quét/gửi nhận `now` từ ngoài (test chủ động đặt giờ). Trong test, tạo đơn mới sẽ tự hủy phiếu giữ chỗ hết hạn nên tạo đơn HOLD hết hạn SAU CÙNG.
 - Trang `/pay/<token>` là trang công khai duy nhất: token ký (14 ngày) gắn một đơn của một tenant, chỉ có quyền `payment.view`, không lộ tên khách.
 - Zalo ZNS/eSMS/SpeedSMS được viết theo tài liệu công khai nhưng CHƯA thử với tài khoản thật (chỉ test bằng fetch giả); thử thật bằng nút "Gửi thử" trước khi bật cho khách.
+
+## Bảo trì và sửa chữa (Giai đoạn 8): quy tắc không được phá
+
+- Khung giờ bảo trì chiếm lịch bằng `unit_allocation` (status `MAINTENANCE`, `booking_id` NULL, `work_order_id` bắt buộc — ràng buộc `unit_allocation_owner`). Mọi chỗ ghi khung bảo trì phải `lockModels` trước (đã làm trong `reserveWindow`); trùng đơn đã đặt thì exclusion constraint chặn, service báo mã đơn trùng. Quét tự động mà không xếp được lịch thì VẪN tạo phiếu (chưa có khung) và cảnh báo quản lý.
+- Trạng thái vật lý của chiếc đổi qua `setUnitStatus`: bắt đầu phiếu → `MAINTENANCE`, hoàn thành → `AVAILABLE` (chỉ khi không còn phiếu khác đang làm), thanh lý → `RETIRED`. Chiếc `MAINTENANCE` bị loại khỏi MỌI khung thời gian tra cứu còn trống (không chỉ khung phiếu).
+- Kế hoạch định kỳ: số giờ/lượt thuê tính từ `handover` loại RETURN sau lần phiếu `DONE` gần nhất của kế hoạch (chưa có thì từ `created_at` của chiếc); điều kiện đến trước thì kích hoạt. Chỉ mục duy nhất `work_order_one_open_per_plan` chống tạo trùng khi quét đồng thời.
+- Cột `date` của Postgres phải đọc bằng `to_char(..., 'YYYY-MM-DD')`: driver `pg` đổi thành `Date` theo múi giờ máy chủ và làm lệch một ngày.
+- Biên bản nhận có hư hỏng tự tạo phiếu `REPAIR` gắn đơn (`createDamageOrder`, bỏ qua nếu gói không có `maintenance`). Chuyển chi phí cho khách (`chargeCustomer`) cần `booking.handover` nên kỹ thuật viên không làm được.
+- Không đặt tên export trùng giữa các file `packages/core` (`export *` làm nuốt âm thầm một bên): đã gặp với `findFreeWindow`, `Part`, `listPlans`.
