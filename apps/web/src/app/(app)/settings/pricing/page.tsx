@@ -4,7 +4,7 @@ import { getPricingSettings, updatePricingSettings } from '@rentpro/db';
 import { DEFAULT_PRICING_CONFIG } from '@rentpro/core';
 import { Field, Notice, btn, card, input } from '@/components/ui';
 import { run, withService } from '@/lib/service';
-import { requireAppSession } from '@/lib/session';
+import { requireAccess } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,8 +25,7 @@ async function save(form: FormData) {
 }
 
 export default async function PricingSettingsPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
-  const s = await requireAppSession();
-  if (!s.tenant.features.pricing || !s.permissions.has('settings.manage')) redirect('/');
+  await requireAccess('pricing', 'settings.manage');
   const f = await searchParams;
   const cur = await withService((c) => getPricingSettings(c));
   const d = DEFAULT_PRICING_CONFIG;

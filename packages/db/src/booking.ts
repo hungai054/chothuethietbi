@@ -10,7 +10,7 @@ import { loadPricingConfig, quoteForCustomer, type PricingInput } from './pricin
 const FEATURE = 'booking' as const;
 export const ACTIVE_ALLOC = ['HOLD', 'CONFIRMED', 'ACTIVE', 'MAINTENANCE'] as const;
 const DEFAULT_TZ = 'Asia/Ho_Chi_Minh';
-type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+type Row = Record<string, any>;
 
 export const tzOf = (ctx: ServiceCtx) => ctx.timezone ?? DEFAULT_TZ;
 export const fmtTime = (ctx: ServiceCtx) => (d: Date) =>

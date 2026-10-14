@@ -49,3 +49,21 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 - `git add -A` đã từng kéo file bộ cài và file mật khẩu vào commit. Luôn `git add` theo đường dẫn cụ thể.
 - Tiền là số nguyên VND. Thời gian lưu UTC, hiển thị và tính ngày lịch theo múi giờ của tenant (`zonedTimeToUtc`).
 - Số giấy tờ tùy thân mã hóa AES-GCM (`MASTER_KEY`), tìm trùng bằng chỉ mục mù HMAC, ảnh ở kho riêng tư truy cập qua URL ký 120 giây và luôn ghi nhật ký. Production bắt buộc `MASTER_KEY`.
+
+## Đặt lịch (Giai đoạn 5): quy tắc không được phá
+
+- **Nguồn sự thật về lịch** là `unit_allocation` (từng chiếc, exclusion constraint) và `qty_allocation` (hàng theo số lượng). `equipment_unit.status` chỉ là tình trạng vật lý HIỆN TẠI, đổi lúc giao/nhận (Giai đoạn 6), KHÔNG đổi khi đặt lịch.
+- **Mọi chỗ ghi lịch phải gọi `lockModels(ctx, modelIds)` trước** (khóa advisory theo mẫu, sắp xếp id). Nếu không, hai giao dịch cùng chèn lịch trùng vào exclusion constraint sẽ chờ nhau và Postgres hủy một bên bằng "deadlock detected" sau 1 giây. Bảo trì (Giai đoạn 8) cũng phải tuân thủ.
+- Khóa dòng mẫu để kiểm tồn kho dùng `FOR NO KEY UPDATE`, KHÔNG dùng `FOR UPDATE` (xung đột với KEY SHARE của khóa ngoại → deadlock).
+- Câu lệnh có thể vi phạm exclusion chạy qua `attempt()` (savepoint) để còn truy vấn gợi ý (chiếc rảnh, khung trống) trước khi báo lỗi.
+- Giá đã chốt lưu trong đơn (`quote`, `pricing_input`); gia hạn/trả sớm/dời lịch tính lại từ đó, không đọc lại bảng giá hiện tại.
+- Giữ chỗ hết hạn được hủy "lười" (`releaseExpiredHolds`) ở đầu mọi thao tác đặt lịch/tra cứu; tác vụ nền Giai đoạn 7 chỉ gọi lại hàm này.
+- Số đơn cấp ở CUỐI giao dịch (bộ đếm `doc_counter`) để khóa bộ đếm giữ ngắn; đơn lỗi không tiêu số.
+
+## Bài học thêm (giao diện)
+
+- Server action KHÔNG được bắt hàm cục bộ trong closure (Next phải mã hóa biến closure). Hàm hỗ trợ như `okUrl()` đặt ở phạm vi module; chỉ bắt chuỗi/số.
+- Playwright: `page.request` chạy bằng Node và phụ thuộc DNS của hệ điều hành, có máy không phân giải được `*.localhost`. Dùng `pageFetch()` (e2e/tests/helpers.ts) để gọi HTTP từ trong trình duyệt.
+- Locator tiếng Việt dễ khớp nhầm chuỗi con ("Giữ chỗ" khớp cả "Lưu báo giá (chưa giữ chỗ)"): dùng `exact: true` hoặc `getByPlaceholder`.
+- Sau thao tác kéo thả, toast hiện TRƯỚC khi lịch vẽ lại: test phải chờ trạng thái cuối (`expect.poll`), không dựa vào toast.
+- Trang cần quyền thì dùng `requireAccess(feature, quyền)` để người dùng thấy lý do thay vì bị chuyển về trang chủ trống.

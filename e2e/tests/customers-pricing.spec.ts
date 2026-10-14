@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { E2E_PASSWORD } from '../global-setup';
+import { pageFetch } from './helpers';
 
 test.use({ baseURL: process.env.E2E_TENANT_URL });
 test.describe.configure({ mode: 'serial' });
@@ -67,18 +68,20 @@ test('giấy tờ tùy thân: cần đồng ý, lưu mã hóa, chủ xem đượ
 
   const href = await row.getByRole('link', { name: 'Ảnh mặt trước' }).getAttribute('href');
   expect(href).toMatch(/^\/files\/[\w.-]+$/);
-  const img = await page.request.get(href!);
-  expect(img.status()).toBe(200);
-  expect(img.headers()['content-type']).toBe('image/png');
-  expect(img.headers()['cache-control']).toContain('no-store');
-  expect(img.headers()['x-content-type-options']).toBe('nosniff');
-  expect([...(await img.body())]).toEqual([...PNG]);
+  const img = await pageFetch(page, href!);
+  expect(img.status).toBe(200);
+  expect(img.headers['content-type']).toBe('image/png');
+  expect(img.headers['cache-control']).toContain('no-store');
+  expect(img.headers['x-content-type-options']).toBe('nosniff');
+  expect(img.bytes).toEqual([...PNG]);
 
   // sai chữ ký / hết hạn / không đăng nhập
-  expect((await page.request.get('/files/khong-phai-token')).status()).toBe(403);
-  expect((await page.request.get(href!.slice(0, -3) + 'abc')).status()).toBe(403);
+  expect((await pageFetch(page, '/files/khong-phai-token')).status).toBe(403);
+  expect((await pageFetch(page, href!.slice(0, -3) + 'abc')).status).toBe(403);
   const anon = await page.context().browser()!.newContext({ baseURL: process.env.E2E_TENANT_URL });
-  expect((await anon.request.get(href!)).status()).toBe(403);
+  const anonPage = await anon.newPage();
+  await anonPage.goto('/login');
+  expect((await pageFetch(anonPage, href!)).status).toBe(403);
   await anon.close();
 });
 

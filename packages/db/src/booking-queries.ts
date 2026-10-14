@@ -3,7 +3,7 @@ import { ACTIVE_ALLOC, releaseExpiredHolds, tzOf } from './booking';
 import { NotFoundError, ValidationError, guard, type ServiceCtx } from './service';
 
 const FEATURE = 'booking' as const;
-type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+type Row = Record<string, any>;
 
 export interface BookingListRow {
   id: string; code: string; status: BookingStatus; customerId: string; customerName: string; startsAt: Date; endsAt: Date; total: number; holdExpiresAt: Date | null;

@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import ExcelJS from 'exceljs';
 import { IMPORT_COLUMNS } from '@rentpro/core';
 import { E2E_PASSWORD } from '../global-setup';
+import { pageFetch } from './helpers';
 
 test.use({ baseURL: process.env.E2E_TENANT_URL });
 test.describe.configure({ mode: 'serial' });
@@ -118,10 +119,10 @@ test('nhập Excel: xem trước báo lỗi từng dòng, chặn nhập; sửa x
 
 test('xuất Excel tải về được', async ({ page }) => {
   await login(page, 'owner');
-  const res = await page.request.get('/inventory/export');
-  expect(res.status()).toBe(200);
-  expect(res.headers()['content-type']).toContain('spreadsheetml');
-  expect((await res.body()).subarray(0, 2).toString()).toBe('PK'); // file zip/xlsx
+  const res = await pageFetch(page, '/inventory/export');
+  expect(res.status).toBe(200);
+  expect(res.headers['content-type']).toContain('spreadsheetml');
+  expect(String.fromCharCode(...res.bytes.slice(0, 2))).toBe('PK'); // file zip/xlsx
 });
 
 test('kiểm kê: quét thiếu thì báo thiếu, đóng đợt thì không quét thêm', async ({ page }) => {
