@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
-import { confirmTotp, recordTotpStep, storeTotpSecret } from '@rentpro/db';
-import { generateTotpSecret, otpauthUrl, verifyTotp } from '@rentpro/core';
+import { confirmTotp, recordTotpStep, resealTotpSecret, storeTotpSecret } from '@rentpro/db';
+import { generateTotpSecret, openTotpSecret, otpauthUrl, sealTotpSecret, verifyTotp } from '@rentpro/core';
+import { keyRingFromEnv } from '@rentpro/tenancy';
 import { db, getPendingUser, loginAllowed, recordLoginFailure, startSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -14,11 +15,14 @@ async function verify(form: FormData) {
   const code = String(form.get('code') ?? '').replace(/\s/g, '');
   if (!user.totp_secret) redirect('/login/totp');
   const last = user.totp_last_step === null ? undefined : Number(user.totp_last_step);
-  const step = verifyTotp(user.totp_secret, code, Date.now(), 1, last);
+  const ring = keyRingFromEnv();
+  const { secret, legacy } = openTotpSecret(user.totp_secret, ring);
+  const step = verifyTotp(secret, code, Date.now(), 1, last);
   if (step === null) {
     recordLoginFailure(key);
     redirect('/login/totp?error=bad');
   }
+  if (legacy) await resealTotpSecret(db(), user.id, sealTotpSecret(secret, ring)); // mã hóa lại khóa cũ lưu chữ thường
   if (user.totp_enabled) await recordTotpStep(db(), user.id, step);
   else await confirmTotp(db(), user.id, step); // lần đầu: xác nhận đã quét mã thành công
   await startSession(user.id);
@@ -33,9 +37,12 @@ export default async function TotpPage({ searchParams }: { searchParams: Promise
   // Chưa bật 2FA: bắt buộc đăng ký. Tạo khóa nếu chưa có (và giữ nguyên khi tải lại trang).
   let enroll: string | null = null;
   if (!user.totp_enabled) {
-    const secret = user.totp_secret ?? generateTotpSecret();
-    if (!user.totp_secret) await storeTotpSecret(db(), user.id, secret);
-    enroll = secret;
+    const ring = keyRingFromEnv();
+    if (user.totp_secret) enroll = openTotpSecret(user.totp_secret, ring).secret;
+    else {
+      enroll = generateTotpSecret();
+      await storeTotpSecret(db(), user.id, sealTotpSecret(enroll, ring)); // lưu mã hóa; chỉ hiện khóa gốc một lần cho người đăng ký
+    }
   }
 
   return (

@@ -12,3 +12,8 @@ export * from './pricing/engine';
 export * from './customers/customer';
 export * from './settings/pricing-settings';
 export * from './time';
+export * from './auth/totp-seal';
+export * from './booking/state';
+export * from './booking/availability';
+export * from './booking/doc-number';
+export * from './settings/booking-settings';

@@ -13,6 +13,6 @@ export default defineConfig({
   use: { channel: 'chrome', baseURL: 'http://demo.localhost:3000', trace: 'retain-on-failure' },
   webServer: [
     { command: 'node node_modules/next/dist/bin/next start -p 3000', cwd: '../apps/web', url: 'http://localhost:3000/api/healthz', reuseExistingServer: true, timeout: 60_000, env: { MASTER_KEY: TEST_MASTER_KEY, FILE_URL_SECRET: 'e2e-file-url-secret-not-for-production' } },
-    { command: 'node node_modules/next/dist/bin/next start -p 3001', cwd: '../apps/admin', url: 'http://localhost:3001/login', reuseExistingServer: true, timeout: 60_000 },
+    { command: 'node node_modules/next/dist/bin/next start -p 3001', cwd: '../apps/admin', url: 'http://localhost:3001/login', reuseExistingServer: true, timeout: 60_000, env: { MASTER_KEY: TEST_MASTER_KEY } },
   ],
 });

@@ -90,3 +90,25 @@ describe('TOTP (RFC 6238)', () => {
     expect(verifyTotp(s, '12ab56', now)).toBeNull();
   });
 });
+
+import { randomBytes } from 'node:crypto';
+import { sealTotpSecret, openTotpSecret } from '../src';
+
+describe('mã hóa khóa TOTP của quản trị viên', () => {
+  const ring = { current: 'k1', keys: { k1: randomBytes(32) } };
+  it('lưu dạng mã hóa, không lộ khóa gốc, đọc lại đúng', () => {
+    const s = generateTotpSecret();
+    const sealed = sealTotpSecret(s, ring);
+    expect(sealed).not.toContain(s);
+    expect(openTotpSecret(sealed, ring)).toEqual({ secret: s, legacy: false });
+  });
+  it('đọc được dữ liệu cũ chữ thường và đánh dấu legacy', () => {
+    const s = generateTotpSecret();
+    expect(openTotpSecret(s, ring)).toEqual({ secret: s, legacy: true });
+  });
+  it('sai khóa hoặc dữ liệu rác bị từ chối', () => {
+    const sealed = sealTotpSecret(generateTotpSecret(), ring);
+    expect(() => openTotpSecret(sealed, { current: 'k1', keys: { k1: randomBytes(32) } })).toThrow();
+    expect(() => openTotpSecret('khong-hop-le', ring)).toThrow(/không hợp lệ/);
+  });
+});

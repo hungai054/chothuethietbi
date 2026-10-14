@@ -59,6 +59,11 @@ export async function storeTotpSecret(pool: Pool, userId: string, secret: string
   await pool.query('UPDATE platform_user SET totp_secret=$2, totp_enabled=false WHERE id=$1', [userId, secret]);
 }
 
+/** Ghi lại khóa đã mã hóa mà KHÔNG đổi trạng thái bật 2FA (dùng khi mã hóa lại khóa cũ lưu chữ thường). */
+export async function resealTotpSecret(pool: Pool, userId: string, sealed: string) {
+  await pool.query('UPDATE platform_user SET totp_secret=$2 WHERE id=$1', [userId, sealed]);
+}
+
 export async function confirmTotp(pool: Pool, userId: string, step: number) {
   await pool.query('UPDATE platform_user SET totp_enabled=true, totp_last_step=$2 WHERE id=$1', [userId, step]);
 }
