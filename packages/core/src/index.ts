@@ -27,3 +27,4 @@ export * from './contract/template';
 export * from './notify/template';
 export * from './notify/schedule';
 export * from './settings/notify-settings';
+export * from './maintenance/rules';

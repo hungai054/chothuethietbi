@@ -3,6 +3,7 @@ import { PERMISSIONS, signToken } from '@rentpro/core';
 import { resolveFeatures, resolveLimits, type KeyRing } from '@rentpro/tenancy';
 import { withTenantId } from './client';
 import { releaseExpiredHolds } from './booking';
+import { scanMaintenance, type MaintenanceScanResult } from './maintenance';
 import { dispatchQueued, scanReminders, type DispatchResult, type NotifyDeps, type ScanResult } from './notify';
 import type { ServiceCtx } from './service';
 import type { StorageAdapter } from './storage';
@@ -37,7 +38,7 @@ export async function listRunnableTenants(adminPool: pg.Pool): Promise<JobTenant
   }));
 }
 
-export interface TenantJobResult { tenantId: string; holdsReleased: number; scan: ScanResult | null; dispatch: DispatchResult | null; errors: string[] }
+export interface TenantJobResult { tenantId: string; holdsReleased: number; scan: ScanResult | null; dispatch: DispatchResult | null; maintenance: MaintenanceScanResult | null; errors: string[] }
 
 /** Một bước của tác vụ nền: giao dịch riêng, khóa advisory để hai worker không chạy trùng, ghi nhật ký kết quả, lỗi không lan sang bước khác. */
 async function step<T>(deps: JobDeps, t: JobTenant, name: string, now: Date, fn: (ctx: ServiceCtx) => Promise<T>): Promise<{ ok: true; value: T } | { ok: false; error: string }> {
@@ -67,9 +68,19 @@ async function step<T>(deps: JobDeps, t: JobTenant, name: string, now: Date, fn:
 }
 
 export async function runTenantJobs(deps: JobDeps, t: JobTenant, now = new Date()): Promise<TenantJobResult> {
-  const out: TenantJobResult = { tenantId: t.id, holdsReleased: 0, scan: null, dispatch: null, errors: [] };
+  const out: TenantJobResult = { tenantId: t.id, holdsReleased: 0, scan: null, dispatch: null, maintenance: null, errors: [] };
   const holds = await step(deps, t, 'holds.release', now, (ctx) => releaseExpiredHolds(ctx));
   if (holds.ok) out.holdsReleased = holds.value ?? 0; else out.errors.push(`holds.release: ${holds.error}`);
+
+  // Bảo trì định kỳ chỉ cần kiểm tra vài lần mỗi ngày: bỏ qua nếu 6 giờ qua đã quét thành công
+  if (t.features.maintenance) {
+    const recent = await withTenantId(deps.appPool, t.id, async (db) =>
+      (await db.query(`SELECT 1 FROM job_run WHERE name='maintenance.scan' AND ok AND started_at > $1 LIMIT 1`, [new Date(now.getTime() - 6 * 3_600_000)])).rowCount).catch(() => 0);
+    if (!recent) {
+      const m = await step(deps, t, 'maintenance.scan', now, (ctx) => scanMaintenance(ctx, now));
+      if (m.ok) out.maintenance = m.value ?? null; else out.errors.push(`maintenance.scan: ${m.error}`);
+    }
+  }
 
   const base = deps.publicUrl?.(t.slug) ?? null;
   const payLink = base && deps.paySecret ? (bookingId: string) => `${base}/pay/${signToken({ t: t.id, b: bookingId }, deps.paySecret!, PAY_LINK_TTL_SECONDS)}` : undefined;

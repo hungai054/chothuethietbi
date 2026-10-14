@@ -5,6 +5,7 @@ import {
 import { lockBooking, shortenLocked } from './booking';
 import { computeLedger, handoverRules, insertFee, storePhoto } from './finance';
 import { setUnitStatus } from './inventory';
+import { createDamageOrder } from './maintenance';
 import { NotFoundError, ValidationError, audit, guard, need, type ServiceCtx } from './service';
 
 type Row = Record<string, any>;
@@ -199,6 +200,7 @@ export async function receiveBooking(ctx: ServiceCtx, bookingId: string, input: 
       await setUnitStatus(ctx, u.unit_id, 'INSPECTING', `Nhận lại từ khách (đơn ${b.code})`);
       if (it.condition === 'DAMAGED') {
         await setUnitStatus(ctx, u.unit_id, 'MAINTENANCE', `Hư hỏng khi trả: ${it.notes?.trim()}`);
+        await createDamageOrder(ctx, { unitId: u.unit_id, bookingId, bookingCode: b.code, notes: it.notes!.trim() });
         if (it.damageFee && it.damageFee > 0) {
           const d = `Hư hỏng ${u.barcode}: ${it.notes?.trim()}`;
           await insertFee(ctx, bookingId, { kind: 'DAMAGE', description: d, amount: it.damageFee, unitId: u.unit_id });
