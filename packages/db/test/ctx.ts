@@ -6,7 +6,7 @@ import type { TestDb } from './helpers';
 
 export interface Opts {
   role?: TenantRole; off?: FeatureKey[]; limits?: Partial<Limits>; status?: string; storage?: MemoryStorage;
-  ring?: KeyRing; hook?: PricingHook; depositHook?: DepositHook; support?: boolean; perms?: Permission[]; timezone?: string;
+  ring?: KeyRing; hook?: PricingHook; depositHook?: DepositHook; support?: boolean; perms?: Permission[]; timezone?: string; userId?: string;
 }
 
 export const ring: KeyRing = { current: 'k1', keys: { k1: randomBytes(32) } };
@@ -24,7 +24,7 @@ export async function mkTenant(t: TestDb, planCode = 'p', status = 'ACTIVE') {
 export function runAs<T>(t: TestDb, tenantId: string, o: Opts, fn: (c: ServiceCtx) => Promise<T>): Promise<T> {
   const on = Object.fromEntries(FEATURE_KEYS.filter((k) => !o.off?.includes(k)).map((k) => [k, true]));
   return withTenantId(t.app, tenantId, (db) => fn({
-    db, tenantId, tenantStatus: o.status ?? 'ACTIVE', userId: null,
+    db, tenantId, tenantStatus: o.status ?? 'ACTIVE', userId: o.userId ?? null,
     permissions: o.support ? new Set(IMPERSONATION_PERMISSIONS) : new Set(o.perms ?? permissionsFor(o.role ?? 'OWNER')),
     features: resolveFeatures({ planFeatures: on, overrides: {} }), limits: resolveLimits(o.limits ?? {}, {}),
     keyRing: o.ring ?? ring, storage: o.storage ?? storage, pricingHook: o.hook, depositHook: o.depositHook, timezone: o.timezone,

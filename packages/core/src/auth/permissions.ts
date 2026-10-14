@@ -11,6 +11,7 @@ export const PERMISSIONS = [
   'reports.view', 'reports.finance',
   'settings.manage', 'users.manage', 'roles.manage',
   'billing.manage', 'data.export', 'data.delete', 'audit.view',
+  'notification.view', 'notification.manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -32,7 +33,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<TenantRole, readonly Permission[]>
   STAFF: [
     'inventory.view', 'customer.view', 'customer.manage', 'booking.view', 'booking.create', 'booking.cancel',
     'booking.handover', 'contract.view', 'contract.create', 'contract.sign', 'payment.view', 'payment.create',
-    'deposit.view', 'deposit.collect', 'pricing.view', 'maintenance.view', 'reports.view',
+    'deposit.view', 'deposit.collect', 'pricing.view', 'maintenance.view', 'reports.view', 'notification.view',
   ],
   // Kỹ thuật: không thấy tiền và giấy tờ tùy thân
   TECHNICIAN: ['inventory.view', 'inventory.manage', 'inventory.stocktake', 'booking.view', 'maintenance.view', 'maintenance.manage'],

@@ -24,3 +24,6 @@ export * from './finance/deposit';
 export * from './settings/finance-settings';
 export * from './contract/handover';
 export * from './contract/template';
+export * from './notify/template';
+export * from './notify/schedule';
+export * from './settings/notify-settings';
