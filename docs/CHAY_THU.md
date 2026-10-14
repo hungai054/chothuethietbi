@@ -92,6 +92,20 @@ pnpm test          # cần TEST_PG_SERVER_URL trong .env, mỗi lần tạo data
 pnpm e2e           # build web + admin rồi chạy Playwright bằng Chrome có sẵn (đóng 2 server dev trước)
 ```
 
+## 5b. Tác vụ nền và tin nhắc (Giai đoạn 7)
+
+Tin nhắc, hủy giữ chỗ hết hạn và cảnh báo quá hạn do một tiến trình riêng (worker) làm, không chạy trong web:
+
+```bash
+pnpm --filter @rentpro/worker dev     # chạy mãi, mỗi 60 giây một vòng (WORKER_INTERVAL_SECONDS để đổi)
+pnpm --filter @rentpro/worker once    # chạy đúng một vòng rồi thoát (tiện để thử)
+```
+
+- Mặc định mọi kênh ở chế độ **giả lập**: tin được ghi vào "Tin nhắn" (menu) với nhãn "(giả lập)" chứ không gửi thật. Muốn gửi thật: vào "Cấu hình tin nhắn", chọn SMTP/eSMS/SpeedSMS/Zalo và nhập khóa (cần `MASTER_KEY` để mã hóa).
+- Để liên kết thanh toán trong tin nhắc dùng được, đặt `PUBLIC_URL_TEMPLATE=http://{slug}.localhost:3000` (hoặc địa chỉ thật) cho worker; worker và web phải dùng cùng `FILE_URL_SECRET`/`AUTH_SECRET`.
+- Tài khoản gửi chung của nền tảng (cửa hàng chọn "dùng tài khoản chung", bị tính vào hạn mức tin/tháng của gói): `SHARED_SMTP_HOST/PORT/SECURE/USER/PASS/FROM`, `SHARED_SMS_PROVIDER` (`esms`|`speedsms`) + `SHARED_SMS_API_KEY` (+ `SHARED_SMS_SECRET` cho eSMS) + `SHARED_SMS_BRANDNAME`, `SHARED_ZALO_TOKEN` + `SHARED_ZALO_TEMPLATE_ID`.
+- Sau khi cập nhật mã nguồn nhớ áp migration mới: `pnpm --filter @rentpro/db migrate`.
+
 ## 6. Xử lý sự cố
 
 | Triệu chứng | Cách xử lý |

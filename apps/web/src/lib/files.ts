@@ -18,3 +18,10 @@ export function readIdImageToken(token: string): { tenantId: string; documentId:
   if (!c || (c.s !== 'front' && c.s !== 'back') || typeof c.t !== 'string' || typeof c.d !== 'string') return null;
   return { tenantId: c.t, documentId: c.d, side: c.s };
 }
+
+/** Liên kết thanh toán công khai (khách mở từ tin nhắc): chỉ cho một đơn của một cửa hàng, hết hạn sau 14 ngày. */
+export function readPayToken(token: string): { tenantId: string; bookingId: string } | null {
+  const c = verifyToken<{ t: string; b: string }>(token, secret());
+  if (!c || typeof c.t !== 'string' || typeof c.b !== 'string') return null;
+  return { tenantId: c.t, bookingId: c.b };
+}

@@ -76,3 +76,13 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 - Đổi trạng thái thiết bị lúc giao/nhận qua `setUnitStatus` (hệ thống), lịch (`unit_allocation`) chuyển ACTIVE khi giao và RELEASED khi nhận.
 - Ảnh riêng tư (tài sản thế chấp, biên bản, chữ ký) phục vụ qua `/media/<loại>/<id>/<n>`: cần đăng nhập, quyền kiểm trong service.
 - Playwright: `getByRole('alert')` khớp cả bộ thông báo route của Next; dùng `locator('p[role=alert]')`. Mã đơn bị test cấu hình đổi mẫu, đừng khẳng định tiền tố `DT-`. Vẽ chữ ký cần `scrollIntoViewIfNeeded()` trước khi dùng chuột.
+
+## Tác vụ nền và thông báo (Giai đoạn 7): quy tắc không được phá
+
+- Tác vụ nền nằm ở `apps/worker` (vòng lặp mỏng); logic ở `packages/db/src/jobs.ts` + `notify.ts`. Không dùng pg-boss: hàng đợi là bảng `notification_log` (`FOR UPDATE SKIP LOCKED`, khóa idempotency `(tenant_id, idempotency_key)`), khóa advisory chống hai worker chạy trùng một bước.
+- Worker dùng role quản trị CHỈ để liệt kê tenant; mọi việc nghiệp vụ chạy trong `withTenantId` bằng role ứng dụng (RLS). Mỗi bước (`holds.release`, `reminders.scan`, `notifications.dispatch`) có giao dịch riêng và ghi `job_run`; lỗi một bước/tenant không chặn bước/tenant khác.
+- Nhắc nhở chỉ phát slot MỚI NHẤT (`dueReminders`), nên worker nghỉ lâu không dồn tin cũ. Đổi quy tắc nhắc thì sửa `packages/core/src/notify/schedule.ts` + test.
+- Bí mật nhà cung cấp (SMTP/eSMS/Zalo) mã hóa bằng `MASTER_KEY`, không bao giờ trả lại giao diện (`getNotifySettings` chỉ báo "đã lưu"). Tin ở chế độ `shared` tính vào `messages_per_month`; `console`/`OWN` không tính.
+- `releaseExpiredHolds` dùng đồng hồ DB (`now()`), còn quét/gửi nhận `now` từ ngoài (test chủ động đặt giờ). Trong test, tạo đơn mới sẽ tự hủy phiếu giữ chỗ hết hạn nên tạo đơn HOLD hết hạn SAU CÙNG.
+- Trang `/pay/<token>` là trang công khai duy nhất: token ký (14 ngày) gắn một đơn của một tenant, chỉ có quyền `payment.view`, không lộ tên khách.
+- Zalo ZNS/eSMS/SpeedSMS được viết theo tài liệu công khai nhưng CHƯA thử với tài khoản thật (chỉ test bằng fetch giả); thử thật bằng nút "Gửi thử" trước khi bật cho khách.

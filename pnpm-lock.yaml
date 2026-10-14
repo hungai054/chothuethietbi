@@ -239,6 +239,9 @@ importers:
       '@rentpro/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@rentpro/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@rentpro/tenancy':
         specifier: workspace:*
         version: link:../../packages/tenancy
@@ -282,6 +285,31 @@ importers:
       tailwindcss:
         specifier: ^4.1.0
         version: 4.3.3
+
+  apps/worker:
+    dependencies:
+      '@rentpro/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@rentpro/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@rentpro/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
+      '@rentpro/tenancy':
+        specifier: workspace:*
+        version: link:../../packages/tenancy
+      pg:
+        specifier: ^8.13.0
+        version: 8.23.1
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.23.1
+      tsx:
+        specifier: ^4.19.0
+        version: 4.23.15
 
   e2e:
     devDependencies:

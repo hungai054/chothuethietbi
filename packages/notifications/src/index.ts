@@ -174,3 +174,22 @@ export function buildProvider(c: ProviderConfig, deps: ProviderDeps = {}): Notif
     case 'zns': return new ZaloZnsProvider(c, deps.fetchImpl);
   }
 }
+
+/**
+ * Tài khoản gửi CHUNG của nền tảng (cửa hàng chọn chế độ "dùng chung" sẽ bị tính vào hạn mức tin nhắn của gói).
+ * Cấu hình bằng biến môi trường; thiếu thì kênh đó không có tài khoản chung.
+ */
+export function sharedProvidersFromEnv(env: Record<string, string | undefined>): Partial<Record<Channel, ProviderConfig>> {
+  const out: Partial<Record<Channel, ProviderConfig>> = {};
+  if (env.SHARED_SMTP_HOST && env.SHARED_SMTP_FROM) {
+    out.email = { channel: 'email', mode: 'smtp', smtp: { host: env.SHARED_SMTP_HOST, port: Number(env.SHARED_SMTP_PORT ?? 587), secure: env.SHARED_SMTP_SECURE === 'true', user: env.SHARED_SMTP_USER, pass: env.SHARED_SMTP_PASS, from: env.SHARED_SMTP_FROM } };
+  }
+  if (env.SHARED_SMS_PROVIDER === 'esms' && env.SHARED_SMS_API_KEY && env.SHARED_SMS_SECRET) {
+    out.sms = { channel: 'sms', mode: 'esms', apiKey: env.SHARED_SMS_API_KEY, secretKey: env.SHARED_SMS_SECRET, brandname: env.SHARED_SMS_BRANDNAME };
+  } else if (env.SHARED_SMS_PROVIDER === 'speedsms' && env.SHARED_SMS_API_KEY) {
+    out.sms = { channel: 'sms', mode: 'speedsms', accessToken: env.SHARED_SMS_API_KEY, sender: env.SHARED_SMS_BRANDNAME };
+  }
+  if (env.SHARED_ZALO_TOKEN && env.SHARED_ZALO_TEMPLATE_ID) out.zalo = { channel: 'zalo', mode: 'zns', accessToken: env.SHARED_ZALO_TOKEN, templateId: env.SHARED_ZALO_TEMPLATE_ID };
+  return out;
+}
+

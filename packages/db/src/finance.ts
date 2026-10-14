@@ -335,3 +335,18 @@ export async function vietQrFor(ctx: ServiceCtx, bookingId: string, amount?: num
 }
 
 export const handoverRules = async (ctx: ServiceCtx) => ({ ...DEFAULT_HANDOVER, ...((await rawFinanceSettings(ctx)).handover ?? {}) });
+
+// ===== Trang thanh toán công khai (khách mở từ liên kết trong tin nhắc) =====
+export interface PublicPayment { code: string; storeName: string; balanceOwed: number; settled: boolean; qr: QrResult | null }
+
+/** Chỉ những gì khách cần để chuyển khoản: mã đơn, số tiền còn nợ, QR. Không lộ tên khách hay chi tiết đơn. */
+export async function publicPaymentInfo(ctx: ServiceCtx, bookingId: string): Promise<PublicPayment> {
+  const l = await bookingLedger(ctx, bookingId);
+  const owed = l.settlement.balanceOwed;
+  let qr: QrResult | null = null;
+  if (owed > 0) {
+    try { qr = await vietQrFor(ctx, bookingId, owed); } catch (e) { if (!(e instanceof ValidationError)) throw e; }
+  }
+  const store = (await rawFinanceSettings(ctx)).store?.name ?? (await ctx.db.query('SELECT name FROM tenant WHERE id=$1', [ctx.tenantId])).rows[0]?.name ?? '';
+  return { code: l.booking.code, storeName: store, balanceOwed: owed, settled: l.settlement.settled, qr };
+}

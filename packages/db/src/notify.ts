@@ -196,7 +196,7 @@ export async function scanReminders(ctx: ServiceCtx, now: Date, env: ScanEnv = {
         throw new ValidationError(`Mẫu tin "${NOTIFY_EVENT_LABEL[d.event]}" không hợp lệ: ${(e as Error).message}`);
       }
       const pick = pickChannel(ctx, s, { phone: b.phone, email: b.email });
-      const base = { event: d.event, key, bookingId: b.id, customerId: b.customer_id, body, subject: `${NOTIFY_EVENT_LABEL[d.event]} – đơn ${b.code}` };
+      const base = { event: d.event, key, bookingId: b.id, customerId: b.customer_id, scheduledFor: now, body, subject: `${NOTIFY_EVENT_LABEL[d.event]} – đơn ${b.code}` };
       if (!pick) {
         const ok = await enqueue(ctx, { ...base, channel: s.channels[0] ?? 'sms', recipient: '-', status: 'SKIPPED', error: 'Khách chưa có số điện thoại/email phù hợp với kênh đã bật.' });
         if (ok) out.skipped++;

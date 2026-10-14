@@ -1,0 +1,25 @@
+{
+  "name": "@rentpro/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx --env-file=../../.env --env-file=../web/.env.local --env-file=../admin/.env.local src/main.ts",
+    "start": "tsx src/main.ts",
+    "once": "tsx --env-file=../../.env --env-file=../web/.env.local --env-file=../admin/.env.local src/main.ts --once",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo skip",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@rentpro/core": "workspace:*",
+    "@rentpro/db": "workspace:*",
+    "@rentpro/notifications": "workspace:*",
+    "@rentpro/tenancy": "workspace:*",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0"
+  }
+}

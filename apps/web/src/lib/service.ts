@@ -5,6 +5,7 @@ import { LocalFsStorage, NotFoundError, ReadOnlyError, ValidationError, withTena
 import { FeatureDisabledError, LimitExceededError, keyRingFromEnv } from '@rentpro/tenancy';
 import { pool } from './db';
 import { requireAppSession, type AppSession } from './session';
+import { getTenant, type TenantInfo } from './tenant';
 
 const g = globalThis as unknown as { __storage?: LocalFsStorage; __ring?: ReturnType<typeof keyRingFromEnv> };
 // Thư mục lưu ảnh giấy tờ nằm NGOÀI thư mục public của web; production thay bằng adapter S3-compatible.
@@ -20,6 +21,21 @@ export async function withService<T>(fn: (ctx: ServiceCtx, session: AppSession) 
       permissions: s.permissions, features: s.tenant.features, limits: s.tenant.limits,
       timezone: s.tenant.timezone, keyRing: keyRing(), storage: storage(),
     }, s),
+  );
+}
+
+/**
+ * Cho trang công khai (khách chưa đăng nhập, vào bằng liên kết ký): ngữ cảnh của tenant theo host với đúng một quyền xem thanh toán.
+ * Trả null nếu host không thuộc cửa hàng nào.
+ */
+export async function withPublicTenant<T>(fn: (ctx: ServiceCtx, tenant: TenantInfo) => Promise<T>): Promise<T | null> {
+  const tenant = await getTenant();
+  if (!tenant || (tenant.status !== 'ACTIVE' && tenant.status !== 'TRIAL' && tenant.status !== 'READ_ONLY')) return null;
+  return withTenantId(pool(), tenant.id, (db) =>
+    fn({
+      db, tenantId: tenant.id, tenantStatus: tenant.status, userId: null, permissions: new Set(['payment.view']),
+      features: tenant.features, limits: tenant.limits, timezone: tenant.timezone, keyRing: keyRing(), storage: storage(),
+    }, tenant),
   );
 }
 
