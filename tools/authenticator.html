@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trình tạo mã xác thực RentPro</title>
+<style>
+  :root { --bg:#f8fafc; --fg:#0f172a; --card:#fff; --muted:#64748b; --line:#e2e8f0; --accent:#0f172a; --warn-bg:#fffbeb; --warn-fg:#92400e; --err:#b91c1c; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0b1220; --fg:#e2e8f0; --card:#111a2e; --muted:#94a3b8; --line:#243049; --accent:#e2e8f0; --warn-bg:#2a2108; --warn-fg:#fcd34d; --err:#fca5a5; } }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,Segoe UI,Roboto,sans-serif; padding:16px; }
+  main { max-width:520px; margin:24px auto; }
+  h1 { font-size:1.35rem; margin:0 0 4px }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:12px }
+  .warn { background:var(--warn-bg); color:var(--warn-fg); border-radius:8px; padding:10px 12px; font-size:.875rem }
+  label { display:block; font-size:.875rem; color:var(--muted); margin:8px 0 4px }
+  input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--fg); font:inherit }
+  button { font:inherit; border:0; border-radius:8px; padding:10px 16px; cursor:pointer; background:var(--accent); color:var(--bg) }
+  button.ghost { background:transparent; color:var(--muted); padding:4px 8px; text-decoration:underline }
+  .row { display:flex; justify-content:space-between; align-items:center; gap:8px }
+  .code { font:600 2rem/1.2 ui-monospace,Consolas,monospace; letter-spacing:.12em; cursor:pointer; user-select:all }
+  .bar { height:4px; background:var(--line); border-radius:2px; overflow:hidden; margin-top:8px }
+  .bar > div { height:100%; background:var(--accent); transition:width .25s linear }
+  .err { color:var(--err); font-size:.875rem; min-height:1.2em; margin-top:6px }
+  .muted { color:var(--muted); font-size:.875rem }
+</style>
+</head>
+<body>
+<main>
+  <h1>Trình tạo mã xác thực</h1>
+  <p class="muted">Thay thế ứng dụng xác thực bên ngoài: dán khóa 2 lớp vào đây để lấy mã 6 số. Chạy hoàn toàn trên máy bạn, không gửi dữ liệu đi đâu.</p>
+  <p class="warn" role="note">Khóa được lưu trong trình duyệt của máy này. Ai dùng được máy này đều lấy được mã, nên công cụ này <b>chỉ dành cho môi trường phát triển</b>. Với hệ thống thật, hãy dùng thiết bị riêng (điện thoại hoặc khóa bảo mật).</p>
+
+  <section id="list" aria-live="polite"></section>
+
+  <form id="add" class="card" autocomplete="off">
+    <b>Thêm tài khoản</b>
+    <label for="name">Tên gọi</label>
+    <input id="name" value="RentPro Admin" maxlength="60" required>
+    <label for="key">Khóa (hoặc đường dẫn otpauth://)</label>
+    <input id="key" placeholder="VD: JBSWY3DPEHPK3PXP" spellcheck="false" required>
+    <div class="err" id="err" role="alert"></div>
+    <button type="submit">Thêm</button>
+  </form>
+</main>
+
+<script src="totp-lib.js"></script>
+<script>
+(function () {
+  var STORE = 'rentpro-authenticator-v1';
+  var list = document.getElementById('list');
+
+  function load() {
+    try { var v = JSON.parse(localStorage.getItem(STORE) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+  }
+  function save(v) {
+    try { localStorage.setItem(STORE, JSON.stringify(v)); return true; } catch (e) { return false; }
+  }
+
+  var accounts = load();
+  var mem = accounts; // nếu trình duyệt không cho lưu thì vẫn dùng được trong phiên này
+
+  function fmt(code) { return code.slice(0, 3) + ' ' + code.slice(3); }
+
+  function render() {
+    list.innerHTML = '';
+    if (mem.length === 0) {
+      var p = document.createElement('p'); p.className = 'muted'; p.textContent = 'Chưa có tài khoản nào. Thêm khóa ở bên dưới.'; list.appendChild(p); return;
+    }
+    mem.forEach(function (a, i) {
+      var card = document.createElement('div'); card.className = 'card';
+      var top = document.createElement('div'); top.className = 'row';
+      var nm = document.createElement('b'); nm.textContent = a.name;
+      var del = document.createElement('button'); del.className = 'ghost'; del.type = 'button'; del.textContent = 'Xóa';
+      del.onclick = function () {
+        if (confirm('Xóa "' + a.name + '"? Bạn sẽ không lấy được mã nữa cho đến khi đăng ký lại.')) { mem.splice(i, 1); save(mem); render(); }
+      };
+      top.appendChild(nm); top.appendChild(del);
+      var code = document.createElement('div'); code.className = 'code'; code.dataset.index = String(i); code.title = 'Bấm để sao chép'; code.setAttribute('data-testid', 'code-' + i);
+      code.onclick = function () {
+        var raw = code.dataset.raw || '';
+        if (navigator.clipboard && raw) navigator.clipboard.writeText(raw).then(function () { hint.textContent = 'Đã sao chép.'; setTimeout(function () { hint.textContent = ''; }, 1500); }, function () {});
+      };
+      var hint = document.createElement('div'); hint.className = 'muted'; hint.style.minHeight = '1.3em';
+      var bar = document.createElement('div'); bar.className = 'bar'; var fill = document.createElement('div'); bar.appendChild(fill);
+      var left = document.createElement('div'); left.className = 'muted';
+      card.appendChild(top); card.appendChild(code); card.appendChild(bar); card.appendChild(left); card.appendChild(hint);
+      list.appendChild(card);
+    });
+    tick();
+  }
+
+  function tick() {
+    var now = Date.now();
+    var rem = 30 - Math.floor((now / 1000) % 30);
+    var codes = list.querySelectorAll('.code');
+    codes.forEach(function (el) {
+      var a = mem[Number(el.dataset.index)];
+      if (!a) return;
+      try {
+        var raw = Totp.totp(a.key, now);
+        el.dataset.raw = raw; el.textContent = fmt(raw);
+      } catch (e) { el.textContent = 'Khóa lỗi'; }
+      var card = el.parentElement;
+      card.querySelector('.bar > div').style.width = ((rem / 30) * 100) + '%';
+      card.querySelectorAll('.muted')[0].textContent = 'Đổi mã sau ' + rem + ' giây';
+    });
+  }
+
+  document.getElementById('add').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var err = document.getElementById('err'); err.textContent = '';
+    try {
+      var key = Totp.parseKey(document.getElementById('key').value);
+      var name = document.getElementById('name').value.trim() || 'Tài khoản';
+      if (mem.some(function (a) { return a.key === key; })) throw new Error('Khóa này đã được thêm.');
+      mem.push({ name: name, key: key });
+      if (!save(mem)) err.textContent = 'Trình duyệt không cho lưu: mã chỉ dùng được đến khi bạn đóng trang.';
+      document.getElementById('key').value = '';
+      render();
+    } catch (e) { err.textContent = e.message; }
+  });
+
+  render();
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>

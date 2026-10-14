@@ -79,6 +79,11 @@ Thử: tạo khách hàng mới (mật khẩu tạm của chủ hiện một l�
 
 Khách mới tạo ở admin vào được qua `http://<slug>.localhost:3000`.
 
+### Lấy mã xác thực mà không cần ứng dụng bên ngoài
+
+Mở file `toolsuthenticator.html` (bấm đúp, nó mở bằng trình duyệt mặc định). Dán **khóa** hiện ở màn hình "Xác thực 2 lớp" vào ô "Khóa" rồi bấm **Thêm**: trang hiện mã 6 số đổi mỗi 30 giây, bấm vào mã để sao chép. Mọi thứ chạy offline trên máy bạn.
+Lưu ý: khóa được lưu trong trình duyệt của máy này nên **chỉ dùng cho môi trường phát triển**; hệ thống thật phải dùng thiết bị riêng.
+
 ## 5. Chạy kiểm thử
 
 ```bash
