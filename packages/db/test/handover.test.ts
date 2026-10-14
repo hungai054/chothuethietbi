@@ -3,7 +3,7 @@ import { startTestDb, type TestDb } from './helpers';
 import { GIF, JPG, PNG, SIGNATURE, mkTenant, runAs, type Opts } from './ctx';
 import {
   addDepositAsset, addFee, addIdDocument, bookingLedger, cancelBooking, closeBooking, confirmBooking, createBooking, createContract, createCustomer, createModel, createUnits,
-  deliverBooking, ensureDefaultPriceList, getContract, getContractSignature, getHandoverPhoto, getHandovers, receiveBooking, recordPayment, returnDepositAsset, setRule, signContract,
+  deliverBooking, depositLedger, ensureDefaultPriceList, getContract, getContractSignature, getHandoverPhoto, getHandovers, receiveBooking, recordPayment, returnDepositAsset, setRule, signContract,
   transitionUnit, updateFinanceSettings, updatePricingSettings, voidContract, voidPayment, ReadOnlyError, withTenantId, MemoryStorage, type HandoverItemInput,
 } from '../src';
 import { ForbiddenError, type PriceRule } from '@rentpro/core';
@@ -475,6 +475,7 @@ describe('quyết toán và đóng đơn: luồng trọn vẹn', () => {
     const l = await as(s.A, {}, (c) => bookingLedger(c, id));
     expect(l.settlement).toMatchObject({ settled: true, refundDue: 0, balanceOwed: 0 });
     expect(l.paymentStatus).toBe('PAID');
+    expect((await as(s.A, {}, (c) => depositLedger(c))).map((r) => r.bookingId)).not.toContain(id); // đã quyết toán xong → rời sổ cọc
     await expect(pay(s, id, 'RENT', 1000)).rejects.toThrow(/Đơn đã đóng/);
     await expect(as(s.A, {}, (c) => addFee(c, id, { kind: 'OTHER', description: 'x', amount: 1000 }))).rejects.toThrow(/đang thuê hoặc đã nhận lại/);
     const pid = l.payments.find((p) => p.kind === 'REFUND')!.id;

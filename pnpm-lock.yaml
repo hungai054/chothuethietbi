@@ -248,6 +248,9 @@ importers:
       '@zxing/library':
         specifier: ^0.21.3
         version: 0.21.3
+      bwip-js:
+        specifier: ^4.11.4
+        version: 4.11.4
       next:
         specifier: ^15.3.0
         version: 15.5.27(@playwright/test@1.64.0)(@types/node@22.20.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

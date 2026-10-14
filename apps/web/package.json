@@ -17,6 +17,7 @@
     "@rentpro/tenancy": "workspace:*",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
+    "bwip-js": "^4.11.4",
     "next": "^15.3.0",
     "next-auth": "5.0.0-beta.29",
     "pg": "^8.13.0",

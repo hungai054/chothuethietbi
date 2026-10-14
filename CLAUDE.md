@@ -67,3 +67,12 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 - Locator tiếng Việt dễ khớp nhầm chuỗi con ("Giữ chỗ" khớp cả "Lưu báo giá (chưa giữ chỗ)"): dùng `exact: true` hoặc `getByPlaceholder`.
 - Sau thao tác kéo thả, toast hiện TRƯỚC khi lịch vẽ lại: test phải chờ trạng thái cuối (`expect.poll`), không dựa vào toast.
 - Trang cần quyền thì dùng `requireAccess(feature, quyền)` để người dùng thấy lý do thay vì bị chuyển về trang chủ trống.
+
+## Tiền, hợp đồng, giao/nhận (Giai đoạn 6): quy tắc không được phá
+
+- Sổ `payment`/`booking_fee` chỉ thêm, không sửa/xóa; sai thì hủy kèm lý do (cột `voided_*`). Quyết toán luôn tính lại từ sổ (`computeSettlement`), không lưu số dư.
+- Mọi khoản thu có khóa idempotency (form sinh `crypto.randomUUID()` khi render) để bấm đúp không thu trùng. Hoàn tiền chỉ khi đơn đã nhận về/hủy và không quá số phải hoàn.
+- Nội dung hợp đồng là bản chụp lúc lập (`contract.content`); PDF/màn hình dựng từ bản chụp, không đọc lại dữ liệu sống. Trang in dùng "In / Lưu PDF" của trình duyệt (chưa có PDF sinh ở server).
+- Đổi trạng thái thiết bị lúc giao/nhận qua `setUnitStatus` (hệ thống), lịch (`unit_allocation`) chuyển ACTIVE khi giao và RELEASED khi nhận.
+- Ảnh riêng tư (tài sản thế chấp, biên bản, chữ ký) phục vụ qua `/media/<loại>/<id>/<n>`: cần đăng nhập, quyền kiểm trong service.
+- Playwright: `getByRole('alert')` khớp cả bộ thông báo route của Next; dùng `locator('p[role=alert]')`. Mã đơn bị test cấu hình đổi mẫu, đừng khẳng định tiền tố `DT-`. Vẽ chữ ký cần `scrollIntoViewIfNeeded()` trước khi dùng chuột.

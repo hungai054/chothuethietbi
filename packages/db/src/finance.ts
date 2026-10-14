@@ -294,7 +294,7 @@ export interface DepositLedgerRow {
   bookingId: string; code: string; status: string; customerName: string; heldMoney: number; assets: { id: string; description: string; value: number; location: string | null }[];
 }
 
-/** Đơn đang giữ tiền cọc hoặc tài sản thế chấp. */
+/** Đơn đang giữ tiền cọc hoặc tài sản thế chấp (đơn đã đóng thì đã quyết toán xong, không còn nằm trong sổ). */
 export async function depositLedger(ctx: ServiceCtx): Promise<DepositLedgerRow[]> {
   guard(ctx, 'deposit.view', 'deposit');
   const rows = (await ctx.db.query(
@@ -302,7 +302,7 @@ export async function depositLedger(ctx: ServiceCtx): Promise<DepositLedgerRow[]
        COALESCE((SELECT sum(amount) FROM payment p WHERE p.booking_id=b.id AND p.voided_at IS NULL AND p.kind='DEPOSIT'),0)
        - COALESCE((SELECT sum(amount) FROM payment p WHERE p.booking_id=b.id AND p.voided_at IS NULL AND p.kind='REFUND'),0) AS held
      FROM booking b JOIN customer c ON c.id=b.customer_id
-     WHERE b.deleted_at IS NULL AND (
+     WHERE b.deleted_at IS NULL AND b.status <> 'CLOSED' AND (
        EXISTS (SELECT 1 FROM deposit_asset a WHERE a.booking_id=b.id AND a.status='HELD')
        OR COALESCE((SELECT sum(amount) FROM payment p WHERE p.booking_id=b.id AND p.voided_at IS NULL AND p.kind='DEPOSIT'),0)
         - COALESCE((SELECT sum(amount) FROM payment p WHERE p.booking_id=b.id AND p.voided_at IS NULL AND p.kind='REFUND'),0) > 0)
