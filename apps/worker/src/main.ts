@@ -1,6 +1,6 @@
 import './extensions.generated'; // đăng ký extension lúc build (file sinh bởi pnpm ext:sync)
-import { pruneJobRuns, runAllJobs, type JobDeps } from '@rentpro/db';
-import { depsFromEnv } from './config';
+import { dispatchPlatformEmails, pruneJobRuns, runAllJobs, sweepSubscriptions, type JobDeps } from '@rentpro/db';
+import { depsFromEnv, platformEmailFrom } from './config';
 
 /** Một vòng cho mọi tenant; mỗi tenant/bước tự cô lập lỗi nên vòng lặp không bao giờ chết vì một cửa hàng. */
 export async function tick(deps: JobDeps, log: (m: string) => void = console.log): Promise<void> {
@@ -11,6 +11,20 @@ export async function tick(deps: JobDeps, log: (m: string) => void = console.log
   }), { holds: 0, queued: 0, sent: 0, failed: 0, errors: 0 });
   log(`[worker] ${res.length} tenant · hủy giữ chỗ ${sum.holds} · tạo tin ${sum.queued} · đã gửi ${sum.sent} · thất bại ${sum.failed} · lỗi tác vụ ${sum.errors} · ${Date.now() - started} ms`);
   for (const r of res) for (const e of r.errors) log(`[worker] tenant ${r.tenantId}: ${e}`);
+  await billingStep(deps, log);
+}
+
+/** Thuê bao: chuyển chỉ đọc/khóa tenant hết hạn, xếp thư nhắc, rồi gửi thư của nền tảng. Lỗi không làm hỏng vòng chạy. */
+async function billingStep(deps: JobDeps, log: (m: string) => void): Promise<void> {
+  try {
+    const s = await sweepSubscriptions(deps.adminPool);
+    const m = await dispatchPlatformEmails(deps.adminPool, platformEmailFrom(process.env));
+    if (s.readOnly.length + s.suspended.length + s.reopened.length + s.reminders + m.sent + m.failed > 0) {
+      log(`[worker] thuê bao: chỉ đọc ${s.readOnly.length} · khóa ${s.suspended.length} · mở lại ${s.reopened.length} · nhắc ${s.reminders} · thư gửi ${m.sent}, lỗi ${m.failed}`);
+    }
+  } catch (e) {
+    log(`[worker] bước thuê bao lỗi: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 async function main() {

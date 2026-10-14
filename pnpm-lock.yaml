@@ -242,6 +242,9 @@ importers:
       '@rentpro-ext/demo-weekend':
         specifier: workspace:*
         version: link:../../extensions/demo-weekend
+      '@rentpro/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@rentpro/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -373,6 +376,12 @@ importers:
       zod:
         specifier: ^3.24.0
         version: 3.25.76
+
+  packages/billing:
+    dependencies:
+      '@rentpro/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/config:
     devDependencies:

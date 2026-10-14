@@ -5,7 +5,7 @@ import type { NextConfig } from 'next';
 const extensions: string[] = JSON.parse(readFileSync(new URL('./extensions.json', import.meta.url), 'utf8'));
 
 const config: NextConfig = {
-  transpilePackages: ['@rentpro/core', '@rentpro/db', '@rentpro/tenancy', '@rentpro/extension-sdk', '@rentpro/notifications', ...extensions],
+  transpilePackages: ['@rentpro/billing', '@rentpro/core', '@rentpro/db', '@rentpro/tenancy', '@rentpro/extension-sdk', '@rentpro/notifications', ...extensions],
   serverExternalPackages: ['pg', '@node-rs/argon2'],
 };
 export default config;

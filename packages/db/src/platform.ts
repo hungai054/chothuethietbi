@@ -117,8 +117,8 @@ export async function createTenant(pool: Pool, actor: Actor, input: CreateTenant
     try {
       tenantId = (await db.query(
         `INSERT INTO tenant(slug, name, plan_id, status, trial_ends_at)
-         VALUES ($1,$2,$3,'TRIAL', now() + make_interval(days => $4)) RETURNING id`,
-        [input.slug, input.name, plan.id, input.trialDays ?? 14],
+         VALUES ($1,$2,$3,'TRIAL', now() + make_interval(days => COALESCE($4::int, (SELECT (value->>'trialDays')::int FROM platform_setting WHERE key='billing'), 14))) RETURNING id`,
+        [input.slug, input.name, plan.id, input.trialDays ?? null],
       )).rows[0].id;
     } catch (e) {
       const err = e as { code?: string };
@@ -129,6 +129,7 @@ export async function createTenant(pool: Pool, actor: Actor, input: CreateTenant
     await db.query(`INSERT INTO app_user(tenant_id,email,name,password_hash,role) VALUES ($1,$2,$3,$4,'OWNER')`,
       [tenantId, input.ownerEmail.toLowerCase(), input.ownerName, hash]);
     await db.query(`INSERT INTO branch(tenant_id,name) VALUES ($1,'Chi nhánh chính')`, [tenantId]);
+    await db.query(`INSERT INTO subscription_event(tenant_id,kind,plan_code) VALUES ($1,'TRIAL_START',$2)`, [tenantId, input.planCode]);
     await audit(db, actor, 'tenant.create', tenantId, { slug: input.slug, plan: input.planCode });
     return { tenantId, tempPassword };
   });
@@ -180,7 +181,8 @@ export async function setTenantStatus(pool: Pool, actor: Actor, tenantId: string
   await tx(pool, async (db) => {
     const old = (await db.query('SELECT status FROM tenant WHERE id=$1 AND deleted_at IS NULL', [tenantId])).rows[0];
     if (!old) throw new PlatformError('Không tìm thấy khách hàng.');
-    await db.query('UPDATE tenant SET status=$2 WHERE id=$1', [tenantId, status]);
+    // Đổi tay thì không còn là khóa do thuê bao: thanh toán/quét hết hạn sẽ không tự mở lại
+    await db.query('UPDATE tenant SET status=$2, locked_by_billing=false WHERE id=$1', [tenantId, status]);
     await audit(db, actor, 'tenant.status', tenantId, { from: old.status, to: status }, reason);
   });
 }
@@ -331,3 +333,5 @@ export async function applyExtensionMigrations(pool: Pool, defs: ExtensionDefini
   }
   return applied;
 }
+
+export { tx as platformTx, audit as platformAudit };

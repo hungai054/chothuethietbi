@@ -20,3 +20,5 @@ export * from './contract-text';
 export * from './users';
 export * from './domains';
 export * from './extensions';
+export * from './billing';
+export * from './subscription';

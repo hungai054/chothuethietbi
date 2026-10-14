@@ -13,6 +13,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <nav className="flex gap-6 text-sm">
           <Link href="/" className="font-semibold">RentPro Admin</Link>
           <Link href="/tenants/new">Tạo khách hàng</Link>
+          <Link href="/billing">Thuê bao &amp; doanh thu</Link>
         </nav>
         <form action={async () => { 'use server'; await endSession(); redirect('/login'); }} className="text-sm">
           <span className="mr-3 text-slate-300">{user.email} · {user.role}</span>

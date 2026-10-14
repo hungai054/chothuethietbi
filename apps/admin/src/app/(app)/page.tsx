@@ -18,7 +18,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <Card label="Đang trả phí" value={stats.active} />
         <Card label="Dùng thử" value={stats.trial} />
         <Card label="Chỉ đọc / khóa" value={stats.inactive} />
-        <Card label="MRR" value={vnd(stats.mrr)} />
+        <Card label="MRR (theo giá niêm yết)" value={vnd(stats.mrr)} />
       </div>
       <form className="flex flex-wrap gap-2">
         <input name="q" defaultValue={f.q} placeholder="Tìm tên hoặc slug" className="rounded border bg-white px-3 py-2" />

@@ -1,8 +1,9 @@
 import '@/extensions.generated'; // đăng ký extension lúc build (file sinh bởi pnpm ext:sync)
 import { redirect } from 'next/navigation';
-import { AvailabilityError, ForbiddenError, InvalidBookingTransitionError, InvalidOrderTransitionError, InvalidTransitionError, ReportFilterError } from '@rentpro/core';
+import { BillingProviderError } from '@rentpro/billing';
+import { AvailabilityError, CouponError, ForbiddenError, InvalidBookingTransitionError, InvalidOrderTransitionError, InvalidTransitionError, ReportFilterError } from '@rentpro/core';
 import { resolve } from 'node:path';
-import { LocalFsStorage, NotFoundError, withExtensions, ReadOnlyError, ValidationError, withTenantId, type ServiceCtx } from '@rentpro/db';
+import { LocalFsStorage, NotFoundError, PlatformError, withExtensions, ReadOnlyError, ValidationError, withTenantId, type ServiceCtx } from '@rentpro/db';
 import { FeatureDisabledError, LimitExceededError, keyRingFromEnv } from '@rentpro/tenancy';
 import { pool } from './db';
 import { requireAppSession, type AppSession } from './session';
@@ -41,7 +42,7 @@ export async function withPublicTenant<T>(fn: (ctx: ServiceCtx, tenant: TenantIn
   );
 }
 
-const USER_FACING = [ValidationError, NotFoundError, ReadOnlyError, ForbiddenError, FeatureDisabledError, LimitExceededError, InvalidTransitionError, InvalidBookingTransitionError, AvailabilityError, InvalidOrderTransitionError, ReportFilterError];
+const USER_FACING = [ValidationError, NotFoundError, ReadOnlyError, ForbiddenError, FeatureDisabledError, LimitExceededError, InvalidTransitionError, InvalidBookingTransitionError, AvailabilityError, InvalidOrderTransitionError, ReportFilterError, PlatformError, CouponError, BillingProviderError];
 
 export const isUserError = (e: unknown): e is Error => USER_FACING.some((c) => e instanceof c);
 

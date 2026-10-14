@@ -37,3 +37,4 @@ export * from './custom/templates';
 export * from './custom/branding';
 export * from './custom/roles';
 export * from './custom/domain';
+export * from './billing/plan';

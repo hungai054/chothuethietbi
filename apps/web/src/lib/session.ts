@@ -48,6 +48,13 @@ export async function requireAppSession(): Promise<AppSession> {
   return s;
 }
 
+/** Chỉ cần quyền (không gắn với tính năng của gói), VD trang Gói dịch vụ phải vào được ở mọi gói. */
+export async function requirePermission(perm: Permission): Promise<AppSession> {
+  const s = await requireAppSession();
+  if (!s.permissions.has(perm)) redirect('/?error=' + encodeURIComponent('Bạn không có quyền truy cập mục này.'));
+  return s;
+}
+
 /** Chặn truy cập trang khi thiếu tính năng của gói hoặc thiếu quyền; người dùng được đưa về trang chủ với thông báo rõ ràng. */
 export async function requireAccess(feature: keyof AppSession['tenant']['features'], perm: Permission): Promise<AppSession> {
   const s = await requireAppSession();

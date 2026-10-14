@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { cache } from 'react';
 import { resolveTenant, withTenantId } from '@rentpro/db';
-import { resolveBranding, resolveLabels, type Labels, type ResolvedBranding } from '@rentpro/core';
+import { DEFAULT_LIFECYCLE, resolveBranding, resolveLabels, subscriptionPhase, type Labels, type Phase, type ResolvedBranding } from '@rentpro/core';
 import { resolveFeatures, resolveLimits, subdomainOf, type ResolvedFeatures, type Limits } from '@rentpro/tenancy';
 import { pool } from './db';
 
@@ -15,6 +15,8 @@ export interface TenantInfo {
   limits: Limits;
   labels: Labels;
   branding: ResolvedBranding;
+  /** Hạn dùng thử/thuê bao đang áp dụng (null = không thời hạn) và giai đoạn hiện tại */
+  billing: { endsAt: Date | null; phase: Phase; daysLeft: number | null };
 }
 
 const BASE_DOMAIN = process.env.BASE_DOMAIN ?? 'localhost';
@@ -37,13 +39,17 @@ export async function tenantFromHost(host: string): Promise<TenantInfo | null> {
   if (!ref) return null;
   return withTenantId(pool(), ref.id, async (db) => {
     const { rows } = await db.query(
-      `SELECT t.id, t.slug, t.name, t.status, t.timezone, t.settings, t.feature_overrides, t.limit_overrides, p.features, p.limits
-       FROM tenant t JOIN plan p ON p.id = t.plan_id`,
+      `SELECT t.id, t.slug, t.name, t.status, t.timezone, t.settings, t.feature_overrides, t.limit_overrides, p.features, p.limits, t.trial_ends_at,
+              s.period_end, (s.tenant_id IS NOT NULL) AS has_sub, (SELECT value FROM platform_setting WHERE key='billing') AS billing_cfg
+       FROM tenant t JOIN plan p ON p.id = t.plan_id LEFT JOIN subscription s ON s.tenant_id = t.id`,
     );
     const r = rows[0];
     if (!r) return null;
     const features = resolveFeatures({ planFeatures: r.features, overrides: r.feature_overrides });
+    const endsAt: Date | null = r.has_sub ? r.period_end : r.status === 'TRIAL' ? r.trial_ends_at : null;
+    const phase = subscriptionPhase(new Date(), endsAt, { graceDays: r.billing_cfg?.graceDays ?? DEFAULT_LIFECYCLE.graceDays, lockDays: r.billing_cfg?.lockDays ?? DEFAULT_LIFECYCLE.lockDays }).phase;
     return {
+      billing: { endsAt, phase, daysLeft: endsAt ? Math.ceil((endsAt.getTime() - Date.now()) / 86_400_000) : null },
       id: r.id, slug: r.slug, name: r.name, status: r.status, timezone: r.timezone, features,
       limits: resolveLimits(r.limits, r.limit_overrides),
       labels: resolveLabels(r.settings?.labels),

@@ -31,9 +31,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     { href: '/inventory/scan', label: 'Quét mã', show: f['inventory.barcode'] && permissions.has('inventory.view') },
     { href: '/inventory/stocktake', label: 'Kiểm kê', show: f['inventory.stocktake'] && permissions.has('inventory.stocktake') },
     ...extPages.map((p) => ({ href: `/ext/${p.code}/${p.path}`, label: p.title, show: permissions.has(p.permission as never) })),
-    { href: '/settings', label: 'Cài đặt', show: permissions.has('settings.manage') || permissions.has('users.manage') },
+    { href: '/settings', label: 'Cài đặt', show: permissions.has('settings.manage') || permissions.has('users.manage') || permissions.has('billing.manage') },
   ].filter((l) => l.show);
   const readOnly = tenant.status === 'READ_ONLY' || tenant.status === 'SUSPENDED';
+  const bill = tenant.billing;
+  const expiring = !readOnly && bill.endsAt !== null && (bill.phase !== 'ACTIVE' || (bill.daysLeft ?? 99) <= 7);
   const shown = b.displayName ?? tenant.name;
   return (
     <>
@@ -42,7 +44,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           Phiên hỗ trợ của {support.by} — hết hạn lúc {support.expiresAt.toLocaleTimeString('vi-VN')}. Mọi thao tác đều được ghi nhật ký.
         </div>
       )}
-      {readOnly && <div role="status" className="bg-red-100 px-4 py-2 text-center text-sm text-red-900">Tài khoản đang ở chế độ chỉ đọc: bạn xem và xuất dữ liệu được, không tạo hoặc sửa được.</div>}
+      {expiring && (
+        <div role="status" className="bg-amber-100 px-4 py-2 text-center text-sm text-amber-900" data-testid="expiry-banner">
+          {bill.phase === 'GRACE' ? 'Gói dịch vụ đã hết hạn, đang trong thời gian ân hạn.' : `Gói dịch vụ sắp hết hạn (còn ${Math.max(0, bill.daysLeft ?? 0)} ngày).`}{' '}
+          {permissions.has('billing.manage') ? <Link href="/settings/subscription" className="underline">Gia hạn ngay</Link> : 'Hãy báo chủ cửa hàng gia hạn.'}
+        </div>
+      )}
+      {readOnly && <div role="status" className="bg-red-100 px-4 py-2 text-center text-sm text-red-900" data-testid="readonly-banner">Tài khoản đang ở chế độ chỉ đọc: bạn xem và xuất dữ liệu được, không tạo hoặc sửa được. {permissions.has('billing.manage') && <Link href="/settings/subscription" className="underline">Gia hạn / thanh toán</Link>}</div>}
       <header className="flex flex-wrap items-center justify-between gap-2 bg-slate-900 px-4 py-3 text-white" style={{ background: b.primaryColor, color: b.textOnPrimary }} data-testid="app-header">
         <nav className="flex flex-wrap items-center gap-4 text-sm">
           {b.hasLogo && <img src="/brand/logo" alt={`Logo ${shown}`} className="h-8 max-w-[10rem] object-contain" />}
