@@ -28,3 +28,6 @@ export * from './notify/template';
 export * from './notify/schedule';
 export * from './settings/notify-settings';
 export * from './maintenance/rules';
+export * from './reports/types';
+export * from './reports/calc';
+export * from './reports/excel';
