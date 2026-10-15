@@ -157,17 +157,17 @@ test('nhân viên không vào được trang gói dịch vụ; hóa đơn của 
 test('webhook PayOS: chữ ký sai bị từ chối, sai số tiền không kích hoạt, đúng thì kích hoạt, gửi lại không cộng thêm', async ({ page }) => {
   await loginOwner(page);
   const orderCode = await nextOrderCode(pool, invoiceId);
-  const bad = JSON.parse(signedHook(paidData(orderCode, 719_100, 'EV-A')));
+  const bad = JSON.parse(signedHook(paidData(orderCode, 719_100, `EV-A-${STAMP}`)));
   bad.signature = 'a'.repeat(64);
   expect((await postWebhook(page, JSON.stringify(bad))).status).toBe(400);
-  const wrong = await postWebhook(page, signedHook(paidData(orderCode, 1, 'EV-B')));
+  const wrong = await postWebhook(page, signedHook(paidData(orderCode, 1, `EV-B-${STAMP}`)));
   expect(wrong).toMatchObject({ status: 200, json: { ok: false } });
   expect((await q('SELECT status FROM invoice WHERE id=$1', [invoiceId]))[0].status).toBe('OPEN');
   expect((await q("SELECT status FROM tenant WHERE id=$1", [tenantId]))[0].status).toBe('TRIAL');
 
-  const ok = await postWebhook(page, signedHook(paidData(orderCode, 719_100, 'EV-C')));
+  const ok = await postWebhook(page, signedHook(paidData(orderCode, 719_100, `EV-C-${STAMP}`)));
   expect(ok).toMatchObject({ status: 200, json: { ok: true, already: false } });
-  const dup = await postWebhook(page, signedHook(paidData(orderCode, 719_100, 'EV-C')));
+  const dup = await postWebhook(page, signedHook(paidData(orderCode, 719_100, `EV-C-${STAMP}`)));
   expect(dup.json).toMatchObject({ ok: true, already: true });
   expect((await q("SELECT status FROM tenant WHERE id=$1", [tenantId]))[0].status).toBe('ACTIVE');
   expect((await q("SELECT redeemed FROM coupon WHERE code=$1", [COUPON]))[0].redeemed).toBe(1);
@@ -274,7 +274,8 @@ test('quản trị: xuất dữ liệu cửa hàng; xóa mềm cần gõ đúng 
 
   await page.getByTestId('deleted-list').locator('li', { hasText: slug }).getByRole('button', { name: 'Khôi phục' }).click();
   await expect(page.getByText('Không có cửa hàng nào đã xóa.').or(page.getByTestId('deleted-list'))).toBeVisible();
-  expect((await q('SELECT status, deleted_at FROM tenant WHERE id=$1', [id]))[0]).toEqual({ status: 'SUSPENDED', deleted_at: null });
+  // Server action chạy sau cú nhấp: chờ trạng thái cuối trong DB thay vì dựa vào việc danh sách đã vẽ lại
+  await expect.poll(async () => (await q('SELECT status, deleted_at FROM tenant WHERE id=$1', [id]))[0]).toEqual({ status: 'SUSPENDED', deleted_at: null });
   await ctx.close();
 });
 

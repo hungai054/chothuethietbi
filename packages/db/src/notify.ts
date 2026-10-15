@@ -353,12 +353,17 @@ export async function sendTestNotification(ctx: ServiceCtx, channel: Channel, to
 // ===== Hộp thư trong app =====
 export interface InboxItem { id: string; kind: string; title: string; body: string | null; link: string | null; createdAt: Date; read: boolean }
 
-export async function listInbox(ctx: ServiceCtx, limit = 30): Promise<{ items: InboxItem[]; unread: number }> {
+export async function listInbox(ctx: ServiceCtx, limit = 30, opts: { unreadOnly?: boolean } = {}): Promise<{ items: InboxItem[]; unread: number; total: number }> {
   const perms = [...ctx.permissions];
+  const visible = '(permission IS NULL OR permission = ANY($1::text[]))';
+  const isRead = '($2::uuid IS NOT NULL AND $2::uuid = ANY(read_by))';
   const rows = (await ctx.db.query(
-    `SELECT id, kind, title, body, link, created_at, ($2::uuid IS NOT NULL AND $2::uuid = ANY(read_by)) AS read FROM app_notification
-     WHERE permission IS NULL OR permission = ANY($1::text[]) ORDER BY created_at DESC LIMIT $3`, [perms, ctx.userId, Math.min(limit, 100)])).rows;
-  return { items: rows.map((r: Row) => ({ id: r.id, kind: r.kind, title: r.title, body: r.body, link: r.link, createdAt: r.created_at, read: r.read })), unread: rows.filter((r: Row) => !r.read).length };
+    `SELECT id, kind, title, body, link, created_at, ${isRead} AS read FROM app_notification
+     WHERE ${visible} AND ($4::boolean IS NOT TRUE OR NOT ${isRead}) ORDER BY created_at DESC LIMIT $3`,
+    [perms, ctx.userId, Math.min(Math.max(limit, 1), 200), opts.unreadOnly ?? false])).rows;
+  // Đếm trên TOÀN BỘ thông báo nhìn thấy được (không bị cắt bởi giới hạn trang)
+  const c = (await ctx.db.query(`SELECT count(*)::int AS total, count(*) FILTER (WHERE NOT ${isRead})::int AS unread FROM app_notification WHERE ${visible}`, [perms, ctx.userId])).rows[0];
+  return { items: rows.map((r: Row) => ({ id: r.id, kind: r.kind, title: r.title, body: r.body, link: r.link, createdAt: r.created_at, read: r.read })), unread: c.unread, total: c.total };
 }
 
 export async function markInboxRead(ctx: ServiceCtx, id?: string): Promise<void> {

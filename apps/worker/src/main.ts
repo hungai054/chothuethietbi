@@ -1,6 +1,9 @@
 import './extensions.generated'; // đăng ký extension lúc build (file sinh bởi pnpm ext:sync)
 import { dispatchPlatformEmails, pruneJobRuns, runAllJobs, sweepSubscriptions, type JobDeps } from '@rentpro/db';
+import { createReporter } from '@rentpro/core/sentry';
 import { depsFromEnv, platformEmailFrom } from './config';
+
+const reporter = createReporter({ dsn: process.env.SENTRY_DSN, environment: process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV, release: process.env.SENTRY_RELEASE, service: 'worker' });
 
 /** Một vòng cho mọi tenant; mỗi tenant/bước tự cô lập lỗi nên vòng lặp không bao giờ chết vì một cửa hàng. */
 export async function tick(deps: JobDeps, log: (m: string) => void = console.log): Promise<void> {
@@ -24,6 +27,7 @@ async function billingStep(deps: JobDeps, log: (m: string) => void): Promise<voi
     }
   } catch (e) {
     log(`[worker] bước thuê bao lỗi: ${e instanceof Error ? e.message : String(e)}`);
+    void reporter.capture(e, { tags: { step: 'billing' } });
   }
 }
 
@@ -36,6 +40,7 @@ async function main() {
   const stop = () => { stopping = true; };
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
+  process.on('unhandledRejection', (e) => { console.error('[worker] unhandledRejection:', e); void reporter.capture(e, { level: 'fatal', tags: { step: 'unhandledRejection' } }); });
   console.log(`[worker] khởi động, chu kỳ ${every / 1000}s${once ? ' (chạy một lần)' : ''}`);
   do {
     try {
@@ -43,6 +48,7 @@ async function main() {
       if (Date.now() - lastPrune > 86_400_000) { lastPrune = Date.now(); await pruneJobRuns(deps.adminPool); }
     } catch (e) {
       console.error('[worker] vòng chạy lỗi:', e instanceof Error ? e.message : e);
+      await reporter.capture(e, { tags: { step: 'tick' } });
     }
     if (once) break;
     for (let waited = 0; waited < every && !stopping; waited += 500) await new Promise((r) => setTimeout(r, 500));
@@ -52,5 +58,5 @@ async function main() {
 }
 
 if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || process.argv[1]?.endsWith('main.ts')) {
-  main().catch((e) => { console.error(e); process.exit(1); });
+  main().catch(async (e) => { console.error(e); await reporter.capture(e, { level: 'fatal', tags: { step: 'main' } }); process.exit(1); });
 }

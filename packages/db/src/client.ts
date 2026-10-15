@@ -5,7 +5,11 @@ export type Db = pg.PoolClient;
 
 export function createPool(url = process.env.DATABASE_URL): pg.Pool {
   if (!url) throw new Error('Thiếu DATABASE_URL');
-  return new pg.Pool({ connectionString: url });
+  const pool = new pg.Pool({ connectionString: url });
+  // Kết nối RỖI bị máy chủ đóng (khởi động lại DB, failover, hết hạn mạng) phát sự kiện 'error' trên pool; không có handler thì cả tiến trình sập.
+  // Pool tự bỏ kết nối hỏng và lần truy vấn sau sẽ mở kết nối mới.
+  pool.on('error', (e) => console.warn('[db] kết nối rỗi bị đóng:', e.message));
+  return pool;
 }
 
 /**

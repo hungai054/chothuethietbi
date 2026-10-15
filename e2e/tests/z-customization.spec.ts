@@ -34,7 +34,7 @@ const owner = (page: Page) => login(page, 'owner@e2e.local');
 test.beforeAll(async () => {
   // Tenant E2E ở gói Chuyên nghiệp; bật thêm các tính năng gói Doanh nghiệp bằng ghi đè theo tenant (đúng cách cổng quản trị làm)
   const pool = createPool(process.env.E2E_DB_PLATFORM_URL ?? 'postgresql://rentpro_admin:rentpro_admin@localhost:5433/rentpro');
-  await setFeatureOverrides(pool, actor, process.env.E2E_TENANT_ID!, { white_label: true, custom_roles: true, custom_domain: true });
+  await setFeatureOverrides(pool, actor, process.env.E2E_TENANT_ID!, { white_label: true, custom_roles: true, custom_domain: true, api: true });
   await pool.end();
 });
 
@@ -42,7 +42,7 @@ test('trung tâm cài đặt liệt kê đủ mục; mục theo gói hiện đú
   await owner(page);
   await page.getByRole('link', { name: 'Cài đặt' }).click();
   const hub = page.getByTestId('settings-hub');
-  for (const t of ['Tài chính và hợp đồng', 'Mẫu tài liệu', 'Nhãn và thuật ngữ', 'Trường tùy chỉnh', 'Thương hiệu (white-label)', 'Người dùng', 'Vai trò tùy chỉnh', 'Tên miền riêng']) await expect(hub).toContainText(t);
+  for (const t of ['Tài chính và hợp đồng', 'Mẫu tài liệu', 'Nhãn và thuật ngữ', 'Trường tùy chỉnh', 'Thương hiệu (white-label)', 'Người dùng', 'Vai trò tùy chỉnh', 'Tên miền riêng', 'API và webhook', 'Nhật ký thao tác']) await expect(hub).toContainText(t);
   await expect(hub).not.toContainText('Cần nâng cấp gói');
 });
 

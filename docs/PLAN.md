@@ -68,7 +68,7 @@ Bảng nền tảng (không có `tenant_id`, không RLS, chỉ role admin truy c
 | 4 | Khách & giá | khách, giấy tờ mã hóa, pricing engine với đủ unit test |
 | 5 | Đặt lịch | HOLD, exclusion constraint, timeline, test đặt đồng thời |
 | 6 | Hợp đồng & tiền | PDF, ký, cọc, giao/nhận, quyết toán, VietQR |
-| 7 | Job & thông báo | pg-boss, provider theo tenant, idempotency |
+| 7 | Job & thông báo | hàng đợi trong Postgres (không dùng pg-boss), provider theo tenant, idempotency |
 | 8 | Bảo trì | kế hoạch theo ngày/giờ/lượt, phiếu chiếm lịch |
 | 9 | Báo cáo | 9 báo cáo + Excel |
 | 10 | Tùy biến | custom fields, template, nhãn, role, white-label, domain |
@@ -76,8 +76,10 @@ Bảng nền tảng (không có `tenant_id`, không RLS, chỉ role admin truy c
 | 12 | Thương mại | landing, đăng ký, onboarding, thuê bao, PayOS/VietQR, read-only, MRR, export/xóa, API + webhook |
 | 13 | Hoàn thiện | audit, Ctrl+K, notification center, Sentry, backup, E2E, seed, docs |
 
+**Trạng thái: giai đoạn 1–13 đã hoàn thành.** Giai đoạn 13 gồm: xem/lọc/xuất nhật ký thao tác (`/settings/audit`), Ctrl+K (`globalSearch`), trung tâm thông báo (đếm chưa đọc toàn bộ, lọc, phân trang), báo lỗi Sentry không cần SDK, sao lưu + kiểm tra khôi phục (`pnpm db:backup`, `db:backup:verify`), đơn mẫu cho cửa hàng demo, E2E (`z-search`, `z-audit`, `z-api`) và bộ tài liệu (README, HUONG_DAN_SU_DUNG, VAN_HANH, API). Chưa làm có chủ ý: PDF sinh ở server (đang dùng In/Lưu PDF của trình duyệt), thử thật các nhà cung cấp Zalo/eSMS/SpeedSMS và PayOS với tài khoản thật, job E2E trên CI.
+
 Mỗi giai đoạn kết thúc bằng `typecheck + lint + test` xanh và một commit.
 
-## 5. Phụ thuộc môi trường (hiện thiếu trên máy này)
+## 5. Phụ thuộc môi trường
 
-PostgreSQL ≥ 15 (bắt buộc: RLS, `btree_gist`), pnpm, Docker (tùy chọn nhưng khuyến nghị cho dev/CI). Không có Postgres thật thì không thể chứng minh RLS và chống trùng lịch, nên không làm giả bằng SQLite/mock.
+PostgreSQL ≥ 15 (bắt buộc: RLS, `btree_gist`), Node 20+, pnpm. Không có Postgres thật thì không thể chứng minh RLS và chống trùng lịch, nên không làm giả bằng SQLite/mock. Sao lưu cần `pg_dump`/`pg_restore`; E2E cần Chrome (hoặc Chromium qua `executablePath`) và Node 20 (Playwright + Node 22 lỗi khi nạp exceljs).

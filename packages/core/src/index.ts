@@ -44,3 +44,6 @@ export * from './export/tenant-export';
 export * from './api/keys';
 export * from './api/webhook';
 export * from './api/openapi';
+export * from './audit/csv';
+export * from './observability/sentry';
+export * from './ops/backup';

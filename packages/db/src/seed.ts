@@ -1,11 +1,12 @@
 import pg from 'pg';
 import { hashPassword } from '@rentpro/core';
 import { FEATURE_KEYS, type FeatureKey } from '@rentpro/tenancy';
+import { seedDemoActivity } from './seed-activity';
 
 export const DEMO_PASSWORD = 'Demo@12345678';
 
 const only = (keys: FeatureKey[]) => Object.fromEntries(keys.map((k) => [k, true]));
-const BASIC: FeatureKey[] = ['inventory', 'customers', 'inventory.barcode', 'inventory.stocktake', 'booking', 'contract', 'deposit', 'pricing', 'payments', 'notify.email', 'maintenance', 'reports.basic'];
+const BASIC: FeatureKey[] = ['inventory', 'customers', 'inventory.barcode', 'inventory.stocktake', 'booking', 'contract', 'deposit', 'pricing', 'payments', 'notify.email', 'maintenance', 'reports.basic', 'audit.log'];
 const PRO: FeatureKey[] = [...BASIC, 'booking.timeline', 'notify.sms', 'notify.zalo', 'maintenance.usage_based', 'reports.advanced', 'reports.roi', 'custom_fields', 'multi_branch', 'contract.e_signature'];
 const ENT: FeatureKey[] = [...FEATURE_KEYS];
 
@@ -49,6 +50,13 @@ export async function seed(adminUrl: string): Promise<void> {
     await seedDemoData(c, tenantId);
   } finally {
     await c.end();
+  }
+  // Đơn mẫu đi qua service nghiệp vụ; lỗi ở đây không được làm hỏng bước seed nền
+  try {
+    const n = await seedDemoActivity(adminUrl);
+    if (n) console.log(`seed: đã tạo ${n} đơn mẫu cho cửa hàng demo`);
+  } catch (e) {
+    console.warn('seed: bỏ qua đơn mẫu:', e instanceof Error ? e.message : e);
   }
 }
 
