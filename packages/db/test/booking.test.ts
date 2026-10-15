@@ -46,6 +46,23 @@ const allocs = async (id: string) => (await t.admin.query('SELECT unit_id, statu
 const status = async (id: string) => (await t.admin.query('SELECT status, cancel_reason FROM booking WHERE id=$1', [id])).rows[0];
 
 describe('tạo đơn', () => {
+  it('đơn nhiều hơn 4 dòng thiết bị (12 mẫu khác nhau) đặt được và đủ dòng; quá giới hạn thì báo lỗi tiếng Việt', async () => {
+    const s = await shop();
+    const list = await as(s.A, {}, (c) => ensureDefaultPriceList(c));
+    const models: string[] = [];
+    for (let i = 0; i < 12; i++) {
+      const m = await as(s.A, {}, (c) => createModel(c, { name: `Phụ kiện ${i}`, tracked: false, stockQty: 5 }));
+      await as(s.A, {}, (c) => setRule(c, list, m, { hour: null, day: 10_000, week: null, month: null, minHours: 0 }));
+      models.push(m);
+    }
+    const r = await as(s.A, {}, (c) => createBooking(c, { customerId: s.cust, start: at(0), end: at(24), status: 'CONFIRMED', lines: models.map((modelId) => ({ modelId, qty: 1 })) }));
+    const d = await as(s.A, {}, (c) => getBooking(c, r.id));
+    expect(d.lines).toHaveLength(12);
+    expect(d.booking.total).toBe(120_000);
+    const many = Array.from({ length: 51 }, () => ({ modelId: models[0]!, qty: 1 }));
+    await expect(as(s.A, {}, (c) => createBooking(c, { customerId: s.cust, start: at(0), end: at(24), status: 'QUOTE', lines: many }))).rejects.toThrow(/tối đa 50 dòng/);
+  });
+
   it('báo giá không chiếm lịch; có giá từ bảng giá; số đơn tăng dần theo từng cửa hàng', async () => {
     const s = await shop();
     const q1 = await book(s, {}, { status: 'QUOTE' });

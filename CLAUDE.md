@@ -155,3 +155,8 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 
 - `DISABLED_FEATURES` trong `packages/db/src/seed.ts` liệt kê cờ tắt ở MỌI gói (hiện: `notify.sms`, `notify.zalo`). Tắt = mã, dữ liệu, test giữ nguyên; menu/trang/dịch vụ tự ẩn theo cờ. Bật lại: xóa khỏi danh sách rồi `pnpm db:migrate`, hoặc ghi đè cờ cho một cửa hàng ở cổng quản trị. Cửa hàng đã có ghi đè bật riêng vẫn dùng được.
 - Test dịch vụ chạy với MỌI cờ bật (`runAs`), nên không đổi; E2E cần kênh tắt thì bật bằng `setFeatureOverrides` cho tenant của spec (như `notifications.spec.ts`). `setFeatureOverrides` THAY THẾ cả bộ ghi đè, không gộp.
+
+## Dòng thiết bị trong đơn thuê
+
+- Form tạo đơn (`bookings/new`) dùng `components/booking-lines.tsx` (client): mặc định 4 dòng, nút "Thêm dòng" đến `MAX_BOOKING_LINES` (20, ở `lib/booking-limits.ts`). Service `createBooking` chặn trên 50 dòng (`MAX_BOOKING_LINES` trong `packages/db/src/booking.ts`) để chống đầu vào bất thường qua API.
+- Hằng số dùng chung giữa server component và client component phải nằm ở module thường, KHÔNG export từ file `'use client'` (server nhận tham chiếu thay vì giá trị, vòng lặp `i <= MAX` âm thầm không chạy).

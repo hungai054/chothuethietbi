@@ -2,14 +2,15 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { UNIT_LABEL, utcToZonedInput, zonedTimeToUtc, type Discount } from '@rentpro/core';
 import { ValidationError, availability, createBooking, listCustomers, listFieldDefs, listModels, quoteForCustomer, setCustomValues, type BookingLineInput, type QuoteResult } from '@rentpro/db';
+import { BookingLines } from '@/components/booking-lines';
 import { CustomFieldInputs } from '@/components/custom-fields';
 import { Field, Notice, btn, btnGhost, card, input } from '@/components/ui';
+import { MAX_BOOKING_LINES } from '@/lib/booking-limits';
 import { fmtDateTime, vnd } from '@/lib/format';
 import { isUserError, run, withService } from '@/lib/service';
 import { requireAccess } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
-const LINES = 4;
 type Params = Record<string, string | undefined>;
 
 /** Đọc form/URL thành dữ liệu đặt đơn. Thời gian nhập theo giờ của cửa hàng, đổi sang UTC. */
@@ -17,7 +18,7 @@ function parse(p: Params, tz: string) {
   const start = p.start ? zonedTimeToUtc(p.start, tz) : null;
   const end = p.end ? zonedTimeToUtc(p.end, tz) : null;
   const lines: BookingLineInput[] = [];
-  for (let i = 1; i <= LINES; i++) {
+  for (let i = 1; i <= MAX_BOOKING_LINES; i++) {
     const modelId = p[`m${i}`];
     if (modelId) lines.push({ modelId, qty: Math.max(1, Number(p[`q${i}`]) || 1), unitId: i === 1 && p.u1 ? p.u1 : null });
   }
@@ -109,15 +110,7 @@ export default async function NewBooking({ searchParams }: { searchParams: Promi
         </div>
         <fieldset className="space-y-2 rounded border p-3">
           <legend className="px-1 text-sm text-slate-500">Thiết bị{f.u1 ? ' (dòng 1: chiếc đã chọn trên lịch)' : ''}</legend>
-          {Array.from({ length: LINES }, (_, i) => i + 1).map((i) => (
-            <div key={i} className="grid grid-cols-[1fr_6rem] gap-2">
-              <select name={`m${i}`} aria-label={`Thiết bị ${i}`} defaultValue={field(`m${i}`)} className={input}>
-                <option value="">{i === 1 ? '— chọn thiết bị —' : '— thêm thiết bị (tùy chọn) —'}</option>
-                {data.models.map((m) => <option key={m.id} value={m.id}>{m.name}{m.tracked ? '' : ' (theo số lượng)'}</option>)}
-              </select>
-              <input name={`q${i}`} aria-label={`Số lượng ${i}`} type="number" min={1} defaultValue={field(`q${i}`, '1')} className={input} />
-            </div>
-          ))}
+          <BookingLines models={data.models.map((m) => ({ id: m.id, name: m.name, tracked: m.tracked }))} defaults={f} />
         </fieldset>
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="Giảm giá (%) — để trống = theo nhóm khách"><input name="discount" type="number" min={0} max={100} step="0.5" defaultValue={field('discount')} className={input} /></Field>
