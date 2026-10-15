@@ -3,3 +3,8 @@ packages:
   - packages/*
   - extensions/*
   - e2e
+allowBuilds:
+  '@embedded-postgres/linux-x64': false
+  '@embedded-postgres/windows-x64': false
+  embedded-postgres: false
+  esbuild: true
