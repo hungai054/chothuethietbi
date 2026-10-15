@@ -46,7 +46,7 @@ Kế hoạch định kỳ theo ngày, số giờ hoặc số lượt thuê; đ�
 
 ## Tin nhắn và nhắc nhở
 
-Cài đặt → Tin nhắn và nhắc nhở: chọn kênh (Email, SMS eSMS/SpeedSMS, Zalo ZNS) và tài khoản của bạn hoặc kênh dùng chung (tính vào hạn mức tin hằng tháng), chỉnh mẫu tin, giờ nghỉ không gửi. Hệ thống tự nhắc nhận/trả, nhắc công nợ; mục **Tin nhắn** xem nhật ký gửi và gửi lại. Hãy bấm **Gửi thử** trước khi bật cho khách.
+Cài đặt → Tin nhắn và nhắc nhở: gửi qua **Email** (SMS và Zalo hiện đang tắt ở mọi gói). Chọn tài khoản của bạn hoặc kênh dùng chung (tính vào hạn mức tin hằng tháng), chỉnh mẫu tin, giờ nghỉ không gửi. Hệ thống tự nhắc nhận/trả, nhắc công nợ; mục **Tin nhắn** xem nhật ký gửi và gửi lại. Hãy bấm **Gửi thử** trước khi bật cho khách.
 
 ## Báo cáo
 

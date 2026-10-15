@@ -7,8 +7,13 @@ export const DEMO_PASSWORD = 'Demo@12345678';
 
 const only = (keys: FeatureKey[]) => Object.fromEntries(keys.map((k) => [k, true]));
 const BASIC: FeatureKey[] = ['inventory', 'customers', 'inventory.barcode', 'inventory.stocktake', 'booking', 'contract', 'deposit', 'pricing', 'payments', 'notify.email', 'maintenance', 'reports.basic', 'audit.log'];
-const PRO: FeatureKey[] = [...BASIC, 'booking.timeline', 'notify.sms', 'notify.zalo', 'maintenance.usage_based', 'reports.advanced', 'reports.roi', 'custom_fields', 'multi_branch', 'contract.e_signature'];
-const ENT: FeatureKey[] = [...FEATURE_KEYS];
+const PRO: FeatureKey[] = [...BASIC, 'booking.timeline', 'maintenance.usage_based', 'reports.advanced', 'reports.roi', 'custom_fields', 'multi_branch', 'contract.e_signature'];
+/**
+ * Tính năng đang TẮT ở mọi gói để đơn giản hóa sản phẩm (mã, dữ liệu và test vẫn giữ nguyên, bật lại bằng cách xóa khỏi danh sách này rồi chạy
+ * `pnpm db:migrate`; hoặc bật riêng cho một cửa hàng bằng ghi đè cờ ở cổng quản trị). Menu, trang cài đặt, dịch vụ và hàng đợi gửi đều tự theo cờ.
+ */
+export const DISABLED_FEATURES: readonly FeatureKey[] = ['notify.sms', 'notify.zalo'];
+const ENT: FeatureKey[] = FEATURE_KEYS.filter((k) => !DISABLED_FEATURES.includes(k));
 
 /** Seed cố định, chạy lặp lại được (ON CONFLICT). Dùng role quản trị. */
 export async function seed(adminUrl: string): Promise<void> {

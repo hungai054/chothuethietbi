@@ -22,6 +22,14 @@ describe('seed demo', () => {
     expect((await q('SELECT count(DISTINCT code)::int AS n FROM booking'))[0].n).toBe(5);
     expect((await q('SELECT count(*)::int AS n FROM booking WHERE total <= 0'))[0].n).toBe(0);
 
+    // tính năng đã tắt không có ở bất kỳ gói nào; các tính năng khác vẫn còn
+    for (const row of await q("SELECT code, features FROM plan WHERE code IN ('basic','pro','enterprise')")) {
+      expect(row.features['notify.sms'], row.code).toBeUndefined();
+      expect(row.features['notify.zalo'], row.code).toBeUndefined();
+      expect(row.features['notify.email'], row.code).toBe(true);
+    }
+    expect((await q("SELECT features FROM plan WHERE code='enterprise'"))[0].features.api).toBe(true);
+
     await seed(adminUrl());
     expect((await q('SELECT count(*)::int AS n FROM booking'))[0].n).toBe(5);
     expect((await q('SELECT count(*)::int AS n FROM equipment_model'))[0].n).toBe(5);

@@ -83,5 +83,5 @@ Kết nối DB rỗi bị máy chủ đóng (khởi động lại DB, failover) 
 - [ ] Lịch `db:backup` + `db:backup:verify` chạy và bản sao lưu được đẩy ra ngoài máy.
 - [ ] `SENTRY_DSN` đã đặt; thử gây một lỗi và thấy nó trên Sentry.
 - [ ] Worker đang chạy (xem `job_run` có bản ghi mới mỗi phút).
-- [ ] Nhà cung cấp Zalo/eSMS/SpeedSMS đã bấm "Gửi thử" bằng tài khoản thật (hiện mới được kiểm bằng fetch giả).
+- [ ] Email (SMTP) đã bấm "Gửi thử" bằng tài khoản thật. SMS/Zalo đang tắt ở mọi gói; nếu bật lại (xem `DISABLED_FEATURES` trong `packages/db/src/seed.ts`) thì phải thử thật với nhà cung cấp (hiện mới được kiểm bằng fetch giả).
 - [ ] `WEBHOOK_ALLOW_PRIVATE` KHÔNG được đặt.

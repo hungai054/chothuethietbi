@@ -11,13 +11,13 @@ const FEATURES: [string, string][] = [
   ['Đặt lịch không trùng', 'Kiểm tra thiết bị rảnh theo giờ, có thời gian đệm vệ sinh/kiểm tra; hai người đặt cùng lúc chỉ một người thành công.'],
   ['Giá linh hoạt', 'Giá theo giờ, ngày, tuần, tháng; bảng giá theo nhóm khách; tự tính phí trễ hạn, VAT, trả sớm.'],
   ['Hợp đồng và thu tiền', 'Hợp đồng điện tử có chữ ký, cọc, tài sản thế chấp, QR chuyển khoản VietQR, quyết toán khi trả máy.'],
-  ['Nhắc việc tự động', 'Nhắc khách trả đồ, quá hạn, công nợ qua Zalo, SMS, email; giữ chỗ tự hết hạn.'],
+  ['Nhắc việc tự động', 'Nhắc khách trả đồ, quá hạn, công nợ qua email; giữ chỗ tự hết hạn.'],
   ['Bảo trì và sửa chữa', 'Lịch bảo trì theo ngày, giờ dùng, số lượt thuê; thiết bị hỏng tự tạo phiếu sửa.'],
   ['Báo cáo cho chủ cửa hàng', 'Doanh thu, công nợ, hiệu suất từng thiết bị, ROI, xuất Excel.'],
 ];
 
 const PLAN_FLAGS: [string, string][] = [
-  ['booking.timeline', 'Lịch timeline kéo thả'], ['notify.sms', 'Nhắc qua SMS'], ['notify.zalo', 'Nhắc qua Zalo'], ['reports.advanced', 'Báo cáo nâng cao'],
+  ['booking.timeline', 'Lịch timeline kéo thả'], ['reports.advanced', 'Báo cáo nâng cao'],
   ['custom_fields', 'Trường tùy chỉnh'], ['multi_branch', 'Nhiều chi nhánh'],
 ];
 

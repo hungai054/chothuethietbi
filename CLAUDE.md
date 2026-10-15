@@ -150,3 +150,8 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 - **Sao lưu** (`packages/db/src/backup-cli.ts`): `pnpm db:backup` / `db:backup:verify`. Logic đặt tên/dọn ở `packages/core/src/ops/backup.ts` (không bao giờ xóa tệp lạ, luôn giữ ≥ 1 bản). Ảnh (`STORAGE_DIR`) và `MASTER_KEY` sao lưu riêng (xem `docs/VAN_HANH.md`).
 - **Seed demo** gồm đơn mẫu (`seed-activity.ts`) tạo qua service nghiệp vụ, chỉ khi demo chưa có đơn nào. Không viết SQL thẳng vào bảng `booking`/`unit_allocation` trong seed.
 - **E2E**: spec cần tenant gói cao hơn thì tạo tenant MỚI (như `z-api`, `z-audit`, `z-search`) hoặc bật ghi đè cờ (như `z-customization`, nay có cả `api`). Thêm mục mới vào trung tâm cài đặt có `locked` theo gói thì nhớ cập nhật `z-customization.spec.ts`. Worker E2E (`pnpm --filter @rentpro/worker once`) cần `.env` ở gốc và `apps/*/.env.local` (có thể rỗng); trang đăng ký cần `DATABASE_PLATFORM_URL`.
+
+## Tính năng đang tắt (đơn giản hóa)
+
+- `DISABLED_FEATURES` trong `packages/db/src/seed.ts` liệt kê cờ tắt ở MỌI gói (hiện: `notify.sms`, `notify.zalo`). Tắt = mã, dữ liệu, test giữ nguyên; menu/trang/dịch vụ tự ẩn theo cờ. Bật lại: xóa khỏi danh sách rồi `pnpm db:migrate`, hoặc ghi đè cờ cho một cửa hàng ở cổng quản trị. Cửa hàng đã có ghi đè bật riêng vẫn dùng được.
+- Test dịch vụ chạy với MỌI cờ bật (`runAs`), nên không đổi; E2E cần kênh tắt thì bật bằng `setFeatureOverrides` cho tenant của spec (như `notifications.spec.ts`). `setFeatureOverrides` THAY THẾ cả bộ ghi đè, không gộp.
