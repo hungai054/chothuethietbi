@@ -1,5 +1,5 @@
 import {
-  DEFAULT_ROLE_PERMISSIONS, ForbiddenError, RoleError, TENANT_ROLES, hashPassword, normalizeRole, permissionsFor, sanitizeCustomPermissions, validatePasswordStrength,
+  DEFAULT_ROLE_PERMISSIONS, ForbiddenError, RoleError, TENANT_ROLES, hashPassword, normalizeRole, permissionsFor, sanitizeCustomPermissions, validatePasswordStrength, verifyPassword,
   type Permission, type TenantRole,
 } from '@rentpro/core';
 import { assertWithinLimit, can, type ResolvedFeatures } from '@rentpro/tenancy';
@@ -17,7 +17,7 @@ function need(ctx: ServiceCtx, perm: Permission, write: boolean) {
 const isOwnerActor = (ctx: ServiceCtx) => ctx.permissions.has('roles.manage'); // quyền chỉ chủ cửa hàng có
 
 // ===== Quyền hiệu lực của người dùng (dùng khi dựng phiên đăng nhập) =====
-export interface UserAccess { active: boolean; role: TenantRole; customRoleId: string | null; permissions: ReadonlySet<Permission> }
+export interface UserAccess { active: boolean; role: TenantRole; customRoleId: string | null; permissions: ReadonlySet<Permission>; mustChangePassword: boolean }
 
 /**
  * Quyền hiệu lực: vai trò tùy chỉnh thay thế quyền mặc định của vai trò nền — chỉ khi gói còn tính năng `custom_roles`
@@ -25,10 +25,10 @@ export interface UserAccess { active: boolean; role: TenantRole; customRoleId: s
  */
 export async function loadUserAccess(db: Db, userId: string, features: ResolvedFeatures): Promise<UserAccess | null> {
   const r = (await db.query(
-    `SELECT u.active, u.role, u.custom_role_id, cr.permissions FROM app_user u LEFT JOIN custom_role cr ON cr.id = u.custom_role_id WHERE u.id=$1`, [userId])).rows[0];
+    `SELECT u.active, u.role, u.custom_role_id, u.must_change_password, cr.permissions FROM app_user u LEFT JOIN custom_role cr ON cr.id = u.custom_role_id WHERE u.id=$1`, [userId])).rows[0];
   if (!r) return null;
   const custom = r.permissions && features['custom_roles'] === true ? sanitizeCustomPermissions(r.permissions) : undefined;
-  return { active: r.active, role: r.role, customRoleId: r.custom_role_id, permissions: r.active ? permissionsFor(r.role, custom) : new Set() };
+  return { active: r.active, role: r.role, customRoleId: r.custom_role_id, permissions: r.active ? permissionsFor(r.role, custom) : new Set(), mustChangePassword: r.must_change_password === true };
 }
 
 // ===== Vai trò tùy chỉnh =====
@@ -161,8 +161,39 @@ export async function setUserPassword(ctx: ServiceCtx, id: string, password: str
   const u = (await ctx.db.query('SELECT role FROM app_user WHERE id=$1', [id])).rows[0];
   if (!u) throw new NotFoundError('người dùng');
   if (u.role === 'OWNER' && !isOwnerActor(ctx) ) throw new ForbiddenError('roles.manage');
-  await ctx.db.query('UPDATE app_user SET password_hash=$2 WHERE id=$1', [id, await hashPassword(password)]);
-  await audit(ctx, 'user.password', 'app_user', id);
+  // Đặt hộ người khác: họ phải tự đổi ở lần đăng nhập tới (người quản lý đã biết mật khẩu này). Tự đặt cho mình thì không cần.
+  const forced = id !== ctx.userId;
+  await ctx.db.query('UPDATE app_user SET password_hash=$2, must_change_password=$3 WHERE id=$1', [id, await hashPassword(password), forced]);
+  await audit(ctx, 'user.password', 'app_user', id, { forceChange: forced });
+}
+
+// Chặn dò mật khẩu hiện tại từ một phiên bị lộ: 5 lần sai / 15 phút / người dùng (trong bộ nhớ của tiến trình; nhiều bản chạy song song thì mỗi bản đếm riêng)
+const wrongCurrent = new Map<string, number[]>();
+const WRONG_MAX = 5;
+const WRONG_WINDOW_MS = 15 * 60_000;
+
+/**
+ * Người dùng tự đổi mật khẩu của mình. Không cần quyền riêng (ai đăng nhập cũng được) và vẫn đổi được khi cửa hàng ở chế độ chỉ đọc,
+ * vì đây là việc bảo mật của chính họ. Phải nhập đúng mật khẩu hiện tại; mật khẩu mới phải mạnh và khác mật khẩu hiện tại. Tắt cờ buộc đổi.
+ */
+export async function changeOwnPassword(ctx: ServiceCtx, current: string, next: string): Promise<void> {
+  if (!ctx.userId) throw new ValidationError('Phiên hỗ trợ không có tài khoản riêng để đổi mật khẩu.');
+  const now = Date.now();
+  const recent = (wrongCurrent.get(ctx.userId) ?? []).filter((t) => now - t < WRONG_WINDOW_MS);
+  if (recent.length >= WRONG_MAX) throw new ValidationError('Nhập sai mật khẩu hiện tại quá nhiều lần. Hãy thử lại sau 15 phút.');
+  const u = (await ctx.db.query('SELECT password_hash FROM app_user WHERE id=$1 AND active', [ctx.userId])).rows[0];
+  if (!u) throw new NotFoundError('người dùng');
+  if (!(await verifyPassword(u.password_hash, current))) {
+    recent.push(now);
+    wrongCurrent.set(ctx.userId, recent);
+    throw new ValidationError('Mật khẩu hiện tại không đúng.');
+  }
+  const weak = validatePasswordStrength(next);
+  if (weak) throw new ValidationError(weak);
+  if (current === next) throw new ValidationError('Mật khẩu mới phải khác mật khẩu hiện tại.');
+  await ctx.db.query('UPDATE app_user SET password_hash=$2, must_change_password=false WHERE id=$1', [ctx.userId, await hashPassword(next)]);
+  wrongCurrent.delete(ctx.userId);
+  await audit(ctx, 'user.password_change', 'app_user', ctx.userId);
 }
 
 export { DEFAULT_ROLE_PERMISSIONS };

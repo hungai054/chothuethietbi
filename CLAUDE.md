@@ -163,4 +163,10 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 
 ## Đặt lại mật khẩu chủ cửa hàng
 
-- Một hàm duy nhất `resetOwnerPassword` (`packages/db/src/platform.ts`) cho cả nút ở cổng quản trị (quyền `tenant.reset_password`: SUPER_ADMIN, SUPPORT) và CLI `pnpm db:reset-password <slug> [email]`. Lý do bắt buộc; mật khẩu tạm không bao giờ vào URL, `platform_audit` hay `audit_log` (chỉ hiện một lần qua cookie flash 30 giây); ghi cả nhật ký của cửa hàng (`support.password_reset`). Chưa có bắt buộc đổi mật khẩu lần đầu và chưa có "Quên mật khẩu" tự phục vụ qua email.
+- Một hàm duy nhất `resetOwnerPassword` (`packages/db/src/platform.ts`) cho cả nút ở cổng quản trị (quyền `tenant.reset_password`: SUPER_ADMIN, SUPPORT) và CLI `pnpm db:reset-password <slug> [email]`. Lý do bắt buộc; mật khẩu tạm không bao giờ vào URL, `platform_audit` hay `audit_log` (chỉ hiện một lần qua cookie flash 30 giây); ghi cả nhật ký của cửa hàng (`support.password_reset`). Chưa có "Quên mật khẩu" tự phục vụ qua email.
+
+## Buộc đổi mật khẩu
+
+- Cột `app_user.must_change_password` (migration 0013). Bật khi mật khẩu bị đặt HỘ: `resetOwnerPassword` (quản trị) và `setUserPassword` cho người KHÁC; tự đặt cho mình thì không. KHÔNG bật ở `createUser` hay tạo cửa hàng (E2E và quy trình hiện có phụ thuộc đăng nhập ngay). Tắt khi người dùng tự đổi bằng `changeOwnPassword` (cần mật khẩu hiện tại, mạnh, khác cũ; chặn dò 5 lần sai/15 phút/người dùng trong bộ nhớ tiến trình; đổi được cả khi cửa hàng chỉ đọc).
+- Cưỡng chế ở `requireAppSession` (mọi trang trong `(app)` và mọi `withService` đều đi qua nó, kể cả server action và route như `/api/search`): chuyển hướng tới `/account/password`. Trang đó nằm NGOÀI nhóm `(app)` và gọi `withService(..., { allowMustChange: true })`, là chỗ DUY NHẤT bỏ qua cưỡng chế. Thêm trang/route mới đừng tự đọc `getAppSession()` rồi bỏ qua `requireAppSession`/`withService` nếu cần chặn người bị buộc đổi.
+- Chưa vô hiệu hóa các phiên (JWT) đang mở khi mật khẩu đổi; phiên hết hạn sau 12 giờ.

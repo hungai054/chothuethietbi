@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 import { LocalFsStorage, NotFoundError, PlatformError, withExtensions, ReadOnlyError, ValidationError, withTenantId, type ServiceCtx } from '@rentpro/db';
 import { FeatureDisabledError, LimitExceededError, keyRingFromEnv } from '@rentpro/tenancy';
 import { pool } from './db';
-import { requireAppSession, type AppSession } from './session';
+import { getAppSession, requireAppSession, type AppSession } from './session';
 import { getTenant, type TenantInfo } from './tenant';
 
 const g = globalThis as unknown as { __storage?: LocalFsStorage; __ring?: ReturnType<typeof keyRingFromEnv> };
@@ -15,9 +15,16 @@ const storage = () => (g.__storage ??= new LocalFsStorage(process.env.STORAGE_DI
 export const appStorage = storage;
 const keyRing = () => (g.__ring ??= keyRingFromEnv());
 
+/** Chỉ cho trang đổi mật khẩu: cho phép người đang bị buộc đổi mật khẩu */
+async function requireSessionAllowingMustChange(): Promise<AppSession> {
+  const s = await getAppSession();
+  if (!s) redirect('/login');
+  return s;
+}
+
 /** Chạy một thao tác nghiệp vụ trong transaction của tenant hiện tại, với quyền/gói của người đăng nhập. */
-export async function withService<T>(fn: (ctx: ServiceCtx, session: AppSession) => Promise<T>): Promise<T> {
-  const s = await requireAppSession();
+export async function withService<T>(fn: (ctx: ServiceCtx, session: AppSession) => Promise<T>, opts: { allowMustChange?: boolean } = {}): Promise<T> {
+  const s = opts.allowMustChange ? await requireSessionAllowingMustChange() : await requireAppSession();
   return withTenantId(pool(), s.tenant.id, (db) =>
     withExtensions({
       db, tenantId: s.tenant.id, tenantStatus: s.tenant.status, userId: s.support ? null : s.user.id,

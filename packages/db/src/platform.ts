@@ -246,7 +246,7 @@ export async function resetOwnerPassword(pool: Pool, actor: Actor, tenantId: str
     if (owners.length === 0) throw new PlatformError(email ? `Cửa hàng không có chủ với email ${email}.` : 'Cửa hàng không có tài khoản chủ.');
     if (owners.length > 1) throw new PlatformError(`Cửa hàng có ${owners.length} tài khoản chủ (${owners.map((o) => o.email).join(', ')}). Hãy chọn một email.`);
     const o = owners[0]!;
-    await db.query('UPDATE app_user SET password_hash=$2, active=true WHERE id=$1', [o.id, passwordHash]);
+    await db.query('UPDATE app_user SET password_hash=$2, active=true, must_change_password=true WHERE id=$1', [o.id, passwordHash]);
     await audit(db, actor, 'tenant.owner_password_reset', tenantId, { user: o.email, wasInactive: !o.active }, reason);
     await db.query(`INSERT INTO audit_log(tenant_id, action, entity, entity_id, data) VALUES ($1,'support.password_reset','app_user',$2,$3)`,
       [tenantId, o.id, JSON.stringify({ by: actor.email, reason, user: o.email })]);

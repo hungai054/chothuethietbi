@@ -11,6 +11,8 @@ export interface AppSession {
   user: { id: string; name: string; role: string };
   permissions: ReadonlySet<Permission>;
   support: SupportInfo | null;
+  /** Mật khẩu vừa bị đặt lại hộ: phải đổi ở /account/password trước khi dùng tiếp */
+  mustChangePassword: boolean;
 }
 
 /** Phiên hợp lệ cho tenant của request này, hoặc null. Phiên hỗ trợ được kiểm tra lại trong DB mỗi lần. */
@@ -29,6 +31,7 @@ export async function getAppSession(): Promise<AppSession | null> {
       user: { id: session.user.id, name: session.user.name ?? 'Hỗ trợ', role: session.user.role },
       permissions: new Set(IMPERSONATION_PERMISSIONS),
       support: { by: row.platform_user_email, expiresAt: row.expires_at },
+      mustChangePassword: false,
     };
   }
   // Quyền đọc lại từ DB mỗi request: khóa tài khoản hoặc đổi vai trò có hiệu lực ngay, không đợi phiên (JWT) hết hạn
@@ -39,12 +42,17 @@ export async function getAppSession(): Promise<AppSession | null> {
     user: { id: session.user.id, name: session.user.name ?? '', role: access.role },
     permissions: access.permissions,
     support: null,
+    mustChangePassword: access.mustChangePassword,
   };
 }
 
+export const CHANGE_PASSWORD_PATH = '/account/password';
+
+/** Mọi trang trong (app) đi qua đây: người dùng bị buộc đổi mật khẩu chỉ được vào trang đổi mật khẩu. */
 export async function requireAppSession(): Promise<AppSession> {
   const s = await getAppSession();
   if (!s) redirect('/login');
+  if (s.mustChangePassword) redirect(CHANGE_PASSWORD_PATH);
   return s;
 }
 

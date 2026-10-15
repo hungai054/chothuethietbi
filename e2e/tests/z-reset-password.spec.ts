@@ -65,11 +65,62 @@ test('quản trị đặt lại mật khẩu chủ: bắt buộc lý do, hiện 
   await expect(shop.getByText('Email hoặc mật khẩu không đúng.')).toBeVisible();
   await shop.getByPlaceholder('Mật khẩu').fill(temp);
   await shop.getByRole('button', { name: 'Đăng nhập' }).click();
-  await expect(shop.getByRole('link', { name: 'Tổng quan' })).toBeVisible();
 
-  // nhật ký của chính cửa hàng thấy ai đã đặt lại
+  // bị buộc đổi mật khẩu: mọi trang khác đều chuyển về trang đổi mật khẩu
+  await expect(shop).toHaveURL(/\/account\/password/);
+  await expect(shop.getByTestId('must-change-notice')).toBeVisible();
+  await shop.goto(`${SHOP}/settings`);
+  await expect(shop).toHaveURL(/\/account\/password/);
+  await shop.goto(`${SHOP}/customers`);
+  await expect(shop).toHaveURL(/\/account\/password/);
+  const search = await shop.evaluate(async () => { const r = await fetch('/api/search?q=abc', { cache: 'no-store' }); return { type: r.headers.get('content-type') ?? '', url: r.url }; });
+  expect(search.type).not.toContain('application/json'); // API tìm kiếm cũng bị chặn (chuyển về trang đổi mật khẩu)
+
+  const form = shop.getByTestId('change-password-form');
+  const fill = async (cur: string, next: string, confirm: string) => {
+    await shop.goto(`${SHOP}/account/password`);
+    await form.locator('input[name=current]').fill(cur);
+    await form.locator('input[name=next]').fill(next);
+    await form.locator('input[name=confirm]').fill(confirm);
+    await form.getByRole('button', { name: 'Đổi mật khẩu' }).click();
+  };
+  const NEW = `Mat-khau-rieng-${STAMP}`;
+  await fill(temp, NEW, `${NEW}x`);
+  await expect(shop.locator('p[role=alert]')).toContainText('không giống nhau');
+  await fill('sai-mat-khau-12345', NEW, NEW);
+  await expect(shop.locator('p[role=alert]')).toContainText('hiện tại không đúng');
+  await fill(temp, 'yeu', 'yeu');
+  await expect(shop.locator('p[role=alert]').or(shop.locator('input[name=next]:invalid'))).toBeVisible();
+  await fill(temp, NEW, NEW);
+  await expect(shop).toHaveURL(/ok=/);
+  await expect(shop.getByRole('link', { name: 'Tổng quan' })).toBeVisible(); // vào được ứng dụng bình thường
+  await shop.goto(`${SHOP}/settings`);
+  await expect(shop).toHaveURL(/\/settings$/);
+  expect((await q('SELECT must_change_password FROM app_user WHERE tenant_id=$1', [tenantId]))[0].must_change_password).toBe(false);
+
+  // mật khẩu tạm không dùng được nữa, mật khẩu riêng dùng được
+  const again = await browser.newContext();
+  const p2 = await again.newPage();
+  await p2.goto(`${SHOP}/login`);
+  await p2.getByPlaceholder('Email').fill(OWNER);
+  await p2.getByPlaceholder('Mật khẩu').fill(temp);
+  await p2.getByRole('button', { name: 'Đăng nhập' }).click();
+  await expect(p2.getByText('Email hoặc mật khẩu không đúng.')).toBeVisible();
+  await p2.getByPlaceholder('Mật khẩu').fill(NEW);
+  await p2.getByRole('button', { name: 'Đăng nhập' }).click();
+  await expect(p2.getByRole('link', { name: 'Tổng quan' })).toBeVisible();
+  await expect(p2).not.toHaveURL(/account\/password/);
+  // đổi mật khẩu tự nguyện từ thanh đầu trang
+  await p2.getByTestId('change-password-link').click();
+  await expect(p2).toHaveURL(/\/account\/password/);
+  await expect(p2.getByTestId('must-change-notice')).toHaveCount(0);
+  await again.close();
+
+  // nhật ký của chính cửa hàng thấy ai đã đặt lại và việc tự đổi
   await shop.goto(`${SHOP}/settings/audit?action=support`);
   await expect(shop.getByTestId('audit-table')).toContainText('support.password_reset');
+  await shop.goto(`${SHOP}/settings/audit?action=user.password_change`);
+  await expect(shop.getByTestId('audit-total')).toContainText('1 bản ghi');
   await owner.close();
 });
 

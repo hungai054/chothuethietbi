@@ -2,6 +2,11 @@
 
 Dành cho chủ cửa hàng và nhân viên. Mục nào không thấy trên menu nghĩa là tài khoản của bạn chưa có quyền hoặc gói dịch vụ chưa bao gồm; hỏi chủ cửa hàng. Tên gọi các mục (Thiết bị, Đơn thuê…) có thể được cửa hàng đổi ở **Cài đặt → Nhãn và thuật ngữ**.
 
+## Đổi mật khẩu
+
+- Bấm **Đổi mật khẩu** ở thanh đầu trang: nhập mật khẩu hiện tại, mật khẩu mới (ít nhất 10 ký tự, có chữ và số, khác mật khẩu cũ) và nhập lại. Nhập sai mật khẩu hiện tại 5 lần thì bị khóa chức năng này 15 phút.
+- Khi chủ cửa hàng hoặc quản trị viên **đặt lại mật khẩu hộ bạn**, lần đăng nhập đầu bạn sẽ được đưa thẳng tới trang đổi mật khẩu và chưa dùng được phần còn lại cho đến khi đặt mật khẩu riêng.
+
 ## Phím tắt và tìm nhanh
 
 - **Ctrl+K** (⌘+K trên Mac) ở bất kỳ trang nào: gõ tên trang để nhảy tới, hoặc gõ từ 2 ký tự để tìm đơn thuê, khách hàng, thiết bị (mã vạch, serial, tên) và mẫu thiết bị. ↑↓ chọn, Enter mở, Esc đóng. Chỉ hiện những gì bạn có quyền xem; số điện thoại khách chỉ hiện 4 số cuối.
