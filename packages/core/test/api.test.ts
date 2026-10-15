@@ -32,7 +32,7 @@ describe('khóa API', () => {
     expect(looksLikeApiKey('rp_live_short')).toBe(false);
   });
   it('phạm vi → quyền; không bao giờ có quyền giấy tờ, tiền, cài đặt', () => {
-    expect([...permissionsForScopes(['bookings:write'])].sort()).toEqual(['booking.create', 'booking.view', 'customer.view']);
+    expect([...permissionsForScopes(['bookings:write'])].sort()).toEqual(['booking.create', 'booking.view', 'customer.view', 'pricing.view']);
     expect(permissionsForScopes(['khong-co']).size).toBe(0);
     const forbidden = ['customer.id_document.view', 'customer.anonymize', 'deposit.refund', 'payment.create', 'settings.manage', 'users.manage', 'billing.manage', 'data.export', 'data.delete'];
     for (const s of API_SCOPES) for (const p of SCOPE_PERMISSIONS[s]) {

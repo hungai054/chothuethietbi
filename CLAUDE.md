@@ -126,3 +126,11 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 - `ctx.read.query` chỉ SELECT (kiểm tra, LIMIT 5000, timeout 3 giây). Báo cáo extension khóa `ext.<ma>.<khoa>`; trang extension là dữ liệu `ReportResult`, không phải React.
 - Webhook/tích hợp ngoài để Giai đoạn 12. Test E2E không khẳng định số tiền cố định (cấu hình dùng chung của tenant bị z-customization đổi, ví dụ VAT): so sánh với mức nền đo trước.
 - Sửa file qua script `node` heredoc dễ mất dấu `\`: dùng Edit/Write.
+
+## API công khai và webhook (Giai đoạn 12): quy tắc không được phá
+
+- Mô tả endpoint ở MỘT nơi: `API_ENDPOINTS` (`packages/core/src/api/openapi.ts`). Thêm endpoint = thêm mô tả + một handler cùng `id` trong `apps/web/src/lib/api-v1.ts` (route catch-all `/api/v1/[...path]`); OpenAPI tự sinh ở `/api/v1/openapi.json`.
+- Khóa API chạy với quyền HẸP (`SCOPE_PERMISSIONS`), không bao giờ có quyền giấy tờ, tiền cọc, cài đặt. Thêm phạm vi hoặc dịch vụ mới dùng thêm quyền nội bộ thì phải cập nhật bảng này (ví dụ tạo đơn cần `pricing.view` vì tính báo giá). Quyền thiếu hiện ra là 403 "Bạn không có quyền" khi chạy E2E `z-api.spec.ts`.
+- Giờ trong API luôn ISO 8601 KÈM múi giờ (từ chối chuỗi không có offset). Đơn QUOTE không giữ chỗ, nên chỉ HOLD/CONFIRMED mới bị chặn vì hết tồn kho.
+- Khóa/bí mật webhook hiện MỘT lần qua server action trả về client (`useActionState`), không đưa lên URL. `WEBHOOK_ALLOW_PRIVATE=true` (chỉ dev) cho phép http/địa chỉ nội bộ, web và worker dùng chung biến này.
+- Chạy E2E trong máy không có Chrome: dùng Node 20 (`/opt/node20/bin`; Playwright + Node 22 lỗi "module not been linked" khi nạp exceljs), cần `AUTH_SECRET`, và trỏ `executablePath` tới Chromium có sẵn bằng một config tạm (đừng commit).

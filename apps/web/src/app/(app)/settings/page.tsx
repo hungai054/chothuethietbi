@@ -22,6 +22,7 @@ export default async function SettingsHub() {
     { href: '/settings/extensions', title: 'Extension', desc: 'Module mở rộng đang bật cho cửa hàng của bạn (do nhà cung cấp cài đặt).', show: manage && f.extensions },
     { href: '/settings/users', title: 'Người dùng', desc: 'Thêm nhân viên, đổi vai trò, khóa tài khoản, đặt lại mật khẩu.', show: permissions.has('users.manage') },
     { href: '/settings/roles', title: 'Vai trò tùy chỉnh', desc: 'Tự tạo vai trò với ma trận quyền chi tiết.', show: permissions.has('roles.manage'), locked: !f.custom_roles },
+    { href: '/settings/api', title: 'API và webhook', desc: 'Khóa API, địa chỉ nhận webhook, nhật ký gửi.', show: manage, locked: !f.api },
     { href: '/settings/domains', title: 'Tên miền riêng', desc: 'Dùng tên miền của cửa hàng thay vì địa chỉ mặc định.', show: manage, locked: !f.custom_domain },
   ].filter((i) => i.show);
   return (
