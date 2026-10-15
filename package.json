@@ -20,6 +20,7 @@
     "db:backup": "pnpm --filter @rentpro/db backup",
     "db:backup:verify": "pnpm --filter @rentpro/db backup:verify",
     "admin:reset-totp": "pnpm --filter @rentpro/db reset-totp",
+    "db:reset-password": "pnpm --filter @rentpro/db reset-password",
     "ext:new": "node scripts/ext-new.mjs",
     "ext:sync": "node scripts/ext-sync.mjs",
     "ext:check": "pnpm --filter @rentpro/worker ext:check",

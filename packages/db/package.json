@@ -15,7 +15,8 @@
     "backup": "tsx src/backup-cli.ts backup",
     "backup:verify": "tsx src/backup-cli.ts verify",
     "dev:pg": "tsx src/cli.ts dev-pg",
-    "reset-totp": "tsx src/reset-totp.ts"
+    "reset-totp": "tsx src/reset-totp.ts",
+    "reset-password": "tsx src/reset-password.ts"
   },
   "dependencies": {
     "@rentpro/core": "workspace:*",

@@ -75,6 +75,12 @@ Kết nối DB rỗi bị máy chủ đóng (khởi động lại DB, failover) 
 - **Tác vụ nền**: bảng `job_run` ghi mỗi bước (`holds.release`, `reminders.scan`, `notifications.dispatch`, `webhooks.dispatch`…), dọn tự động hằng ngày.
 - **Cổng quản trị**: `platform_audit` ghi mọi thao tác của chủ sản phẩm, kể cả phiên hỗ trợ.
 
+## 6b. Khách quên mật khẩu
+
+- **Nhân viên/quản lý**: chủ cửa hàng đặt lại ở Cài đặt → Người dùng.
+- **Chủ cửa hàng** (hỗ trợ khẩn, chạy trên máy có `DATABASE_ADMIN_URL`): `pnpm db:reset-password <slug> [email]`. Lệnh sinh mật khẩu tạm ngẫu nhiên (hiện một lần), mở lại tài khoản nếu đang bị khóa và ghi `platform_audit` (`user.password_reset_cli`). Gửi mật khẩu cho khách qua kênh an toàn và dặn đổi ngay. Chỉ rõ `email` nếu cửa hàng có nhiều tài khoản chủ.
+- Lệnh KHÔNG đổi trạng thái cửa hàng: nếu cửa hàng đang chỉ đọc/khóa/xóa mềm thì xử lý ở cổng quản trị.
+
 ## 7. Danh sách kiểm tra trước khi mở cho khách thật
 
 - [ ] Đổi mật khẩu role DB và tài khoản seed (`admin@rentpro.local`, `*@demo.local`) hoặc xóa cửa hàng demo.
