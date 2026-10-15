@@ -26,3 +26,4 @@ export * from './signup';
 export * from './onboarding';
 export * from './tenant-data';
 export * from './api';
+export * from './search';

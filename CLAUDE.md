@@ -134,3 +134,9 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 - Giờ trong API luôn ISO 8601 KÈM múi giờ (từ chối chuỗi không có offset). Đơn QUOTE không giữ chỗ, nên chỉ HOLD/CONFIRMED mới bị chặn vì hết tồn kho.
 - Khóa/bí mật webhook hiện MỘT lần qua server action trả về client (`useActionState`), không đưa lên URL. `WEBHOOK_ALLOW_PRIVATE=true` (chỉ dev) cho phép http/địa chỉ nội bộ, web và worker dùng chung biến này.
 - Chạy E2E trong máy không có Chrome: dùng Node 20 (`/opt/node20/bin`; Playwright + Node 22 lỗi "module not been linked" khi nạp exceljs), cần `AUTH_SECRET`, và trỏ `executablePath` tới Chromium có sẵn bằng một config tạm (đừng commit).
+
+## Tìm nhanh Ctrl+K (Giai đoạn 13): quy tắc không được phá
+
+- `globalSearch` (`packages/db/src/search.ts`) chỉ GỌI LẠI các service danh sách (`listModels/listUnits/listCustomers/listBookings`), không viết SQL riêng; mỗi nhóm chỉ chạy khi có quyền xem và gói bật tính năng, nhóm không đủ điều kiện trả rỗng (không báo lỗi). Thêm loại kết quả mới = thêm nhóm ở đây + test quyền/tính năng/cô lập.
+- Kết quả khách chỉ hiện 4 số cuối điện thoại. Từ khóa dưới 2 ký tự trả rỗng, trên 80 ký tự báo lỗi. Các service danh sách chưa thoát ký tự `%` `_` của LIKE (chỉ ảnh hưởng dữ liệu của chính cửa hàng).
+- Danh sách "Đi tới" lấy từ chính menu đã lọc quyền/gói ở `(app)/layout.tsx`; thêm mục menu thì palette tự có. Giao diện ở `components/command-palette.tsx`, API ở `/api/search` (cần đăng nhập, `no-store`).
