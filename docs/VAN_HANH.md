@@ -78,8 +78,10 @@ Kết nối DB rỗi bị máy chủ đóng (khởi động lại DB, failover) 
 ## 6b. Khách quên mật khẩu
 
 - **Nhân viên/quản lý**: chủ cửa hàng đặt lại ở Cài đặt → Người dùng.
-- **Chủ cửa hàng** (hỗ trợ khẩn, chạy trên máy có `DATABASE_ADMIN_URL`): `pnpm db:reset-password <slug> [email]`. Lệnh sinh mật khẩu tạm ngẫu nhiên (hiện một lần), mở lại tài khoản nếu đang bị khóa và ghi `platform_audit` (`user.password_reset_cli`). Gửi mật khẩu cho khách qua kênh an toàn và dặn đổi ngay. Chỉ rõ `email` nếu cửa hàng có nhiều tài khoản chủ.
-- Lệnh KHÔNG đổi trạng thái cửa hàng: nếu cửa hàng đang chỉ đọc/khóa/xóa mềm thì xử lý ở cổng quản trị.
+- **Chủ cửa hàng**: ở **cổng quản trị → trang khách hàng → "Chủ cửa hàng quên mật khẩu"** (vai trò SUPER_ADMIN hoặc SUPPORT, quyền `tenant.reset_password`). Nhập lý do (bắt buộc; hãy xác minh danh tính chủ trước, ví dụ gọi lại số đã đăng ký), bấm "Đặt lại mật khẩu chủ". Hệ thống tạo mật khẩu tạm ngẫu nhiên (hiện MỘT lần, không nằm trong URL), mở lại tài khoản nếu đang bị khóa, ghi nhật ký quản trị và cả nhật ký của cửa hàng (chủ thấy ai đã đặt lại, vì sao). Cửa hàng có nhiều tài khoản chủ thì chọn email cần đặt lại.
+- Gửi mật khẩu tạm cho khách qua kênh an toàn và dặn đổi ngay (Cài đặt → Người dùng, đặt mật khẩu mới cho chính mình). Hệ thống hiện CHƯA bắt buộc đổi mật khẩu ở lần đăng nhập đầu.
+- **Khi không vào được cổng quản trị** (hỗ trợ khẩn, chạy trên máy có `DATABASE_ADMIN_URL`): `pnpm db:reset-password <slug> [email]`, dùng cùng logic với nút trên.
+- Cả hai cách KHÔNG đổi trạng thái cửa hàng: nếu cửa hàng đang chỉ đọc/khóa/xóa mềm thì xử lý ở cổng quản trị.
 
 ## 7. Danh sách kiểm tra trước khi mở cho khách thật
 

@@ -160,3 +160,7 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 
 - Form tạo đơn (`bookings/new`) dùng `components/booking-lines.tsx` (client): mặc định 4 dòng, nút "Thêm dòng" đến `MAX_BOOKING_LINES` (20, ở `lib/booking-limits.ts`). Service `createBooking` chặn trên 50 dòng (`MAX_BOOKING_LINES` trong `packages/db/src/booking.ts`) để chống đầu vào bất thường qua API.
 - Hằng số dùng chung giữa server component và client component phải nằm ở module thường, KHÔNG export từ file `'use client'` (server nhận tham chiếu thay vì giá trị, vòng lặp `i <= MAX` âm thầm không chạy).
+
+## Đặt lại mật khẩu chủ cửa hàng
+
+- Một hàm duy nhất `resetOwnerPassword` (`packages/db/src/platform.ts`) cho cả nút ở cổng quản trị (quyền `tenant.reset_password`: SUPER_ADMIN, SUPPORT) và CLI `pnpm db:reset-password <slug> [email]`. Lý do bắt buộc; mật khẩu tạm không bao giờ vào URL, `platform_audit` hay `audit_log` (chỉ hiện một lần qua cookie flash 30 giây); ghi cả nhật ký của cửa hàng (`support.password_reset`). Chưa có bắt buộc đổi mật khẩu lần đầu và chưa có "Quên mật khẩu" tự phục vụ qua email.

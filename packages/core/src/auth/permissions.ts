@@ -81,14 +81,14 @@ export type PlatformRole = (typeof PLATFORM_ROLES)[number];
 
 export const PLATFORM_PERMISSIONS = [
   'tenant.view', 'tenant.create', 'tenant.change_plan', 'tenant.override_features', 'tenant.suspend',
-  'tenant.impersonate', 'tenant.export', 'tenant.delete', 'plan.manage', 'coupon.manage',
+  'tenant.impersonate', 'tenant.reset_password', 'tenant.export', 'tenant.delete', 'plan.manage', 'coupon.manage',
   'billing.view', 'billing.confirm', 'announcement.send', 'metrics.view', 'health.view', 'extension.manage',
 ] as const;
 export type PlatformPermission = (typeof PLATFORM_PERMISSIONS)[number];
 
 export const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, readonly PlatformPermission[]> = {
   SUPER_ADMIN: PLATFORM_PERMISSIONS,
-  SUPPORT: ['tenant.view', 'tenant.impersonate', 'billing.view', 'health.view', 'metrics.view'],
+  SUPPORT: ['tenant.view', 'tenant.impersonate', 'tenant.reset_password', 'billing.view', 'health.view', 'metrics.view'],
   SALES: ['tenant.view', 'tenant.create', 'tenant.change_plan', 'billing.view', 'metrics.view'],
 };
 

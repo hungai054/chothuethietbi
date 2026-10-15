@@ -1,11 +1,11 @@
 import { notFound, redirect } from 'next/navigation';
 import {
-  changePlan, getTenantDetail, getTenantPlanFeatures, listAudit, listExtensionErrors, listPlans, listSupportAccess, listTenantExtensionsAdmin, PlatformError, setTenantExtension,
+  changePlan, getTenantDetail, getTenantPlanFeatures, listAudit, listExtensionErrors, listPlans, listSupportAccess, listTenantExtensionsAdmin, listTenantOwners, PlatformError, resetOwnerPassword, setTenantExtension,
   setFeatureOverrides, setLimitOverrides, setTenantNotes, setTenantStatus, startImpersonation, SETTABLE_STATUSES,
 } from '@rentpro/db';
 import { FEATURE_KEYS, LIMIT_KEYS } from '@rentpro/tenancy';
-import { signToken } from '@rentpro/core';
-import { actorOf, db, readFlash, requireCan } from '@/lib/session';
+import { platformCan, signToken } from '@rentpro/core';
+import { actorOf, db, readFlash, requireCan, setFlash } from '@/lib/session';
 import { DataSection } from './data-section';
 import { SubscriptionSection } from './subscription-section';
 
@@ -23,16 +23,18 @@ async function guard(id: string, fn: () => Promise<void>, after?: () => string) 
 }
 
 export default async function TenantPage({ params, searchParams }: {
-  params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; ok?: string; created?: string }>;
+  params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; ok?: string; created?: string; reset?: string }>;
 }) {
   const { id } = await params;
   const q = await searchParams;
-  await requireCan('tenant.view');
+  const me = await requireCan('tenant.view');
+  const canReset = platformCan(me.role, 'tenant.reset_password');
   const tenant = await getTenantDetail(db(), id);
   if (!tenant) notFound();
-  const [plans, planFeatures, access, audit, extensions, extErrors, flash] = await Promise.all([
+  const [plans, planFeatures, access, audit, extensions, extErrors, flash, owners] = await Promise.all([
     listPlans(db()), getTenantPlanFeatures(db(), id), listSupportAccess(db(), id), listAudit(db(), id, 15), listTenantExtensionsAdmin(db(), id), listExtensionErrors(db(), id, 10),
-    q.created ? readFlash<{ tempPassword: string; email: string }>() : null,
+    q.created || q.reset ? readFlash<{ tempPassword: string; email: string; kind?: string }>() : null,
+    listTenantOwners(db(), id),
   ]);
 
   async function doPlan(f: FormData) {
@@ -73,6 +75,14 @@ export default async function TenantPage({ params, searchParams }: {
     }
     await guard(id, () => setTenantExtension(db(), actorOf(u), id, code, { enabled: f.get('enabled') === 'on', config }));
   }
+  async function doResetOwner(f: FormData) {
+    'use server';
+    const u = await requireCan('tenant.reset_password');
+    await guard(id, async () => {
+      const r = await resetOwnerPassword(db(), actorOf(u), id, { reason: String(f.get('reason') ?? ''), email: String(f.get('email') ?? '') || undefined });
+      await setFlash({ tempPassword: r.tempPassword, email: r.email, kind: 'reset' }); // cookie httpOnly 30 giây, không đặt vào URL
+    }, () => `/tenants/${id}?reset=1`);
+  }
   async function doNotes(f: FormData) {
     'use server';
     const u = await requireCan('tenant.change_plan');
@@ -102,8 +112,8 @@ export default async function TenantPage({ params, searchParams }: {
       {q.error && <p className="rounded bg-red-50 p-3 text-sm text-red-700">{q.error}</p>}
       {q.ok && <p className="rounded bg-green-50 p-3 text-sm text-green-700">Đã lưu.</p>}
       {flash && (
-        <p className="rounded bg-amber-50 p-3 text-sm text-amber-900">
-          Đã tạo khách hàng. Tài khoản chủ cửa hàng: <b>{flash.email}</b>, mật khẩu tạm: <code className="font-bold">{flash.tempPassword}</code>. Chỉ hiện một lần, hãy chuyển cho khách an toàn.
+        <p className="rounded bg-amber-50 p-3 text-sm text-amber-900" data-testid="temp-password-flash">
+          {flash.kind === 'reset' ? 'Đã đặt lại mật khẩu.' : 'Đã tạo khách hàng.'} Tài khoản chủ cửa hàng: <b>{flash.email}</b>, mật khẩu tạm: <code className="font-bold">{flash.tempPassword}</code>. Chỉ hiện một lần, hãy chuyển cho khách an toàn.
         </p>
       )}
 
@@ -188,6 +198,22 @@ export default async function TenantPage({ params, searchParams }: {
           <button className="rounded bg-slate-900 px-4 py-2 text-white">Lưu ghi chú</button>
         </form>
       </section>
+
+      {canReset && (
+        <section className={box} data-testid="reset-owner">
+          <h2 className="font-medium">Chủ cửa hàng quên mật khẩu</h2>
+          <p className="text-sm text-slate-500">Tạo mật khẩu tạm ngẫu nhiên (hiện một lần) và mở lại tài khoản nếu đang bị khóa. Hãy xác minh danh tính chủ cửa hàng trước (gọi lại số đã đăng ký). Lý do bắt buộc; việc này được ghi vào nhật ký quản trị và cả nhật ký của cửa hàng. Mật khẩu cũ mất hiệu lực ngay.</p>
+          <form action={doResetOwner} className="flex flex-wrap gap-2">
+            {owners.length > 1 ? (
+              <select name="email" required className={input}>{owners.map((o) => <option key={o.email} value={o.email}>{o.email}{o.active ? '' : ' (đang khóa)'}</option>)}</select>
+            ) : (
+              <span className="self-center text-sm text-slate-600">{owners[0]?.email ?? 'Chưa có tài khoản chủ'}{owners[0] && !owners[0].active ? ' (đang khóa)' : ''}</span>
+            )}
+            <input name="reason" required minLength={5} maxLength={300} placeholder="Lý do (VD: quên mật khẩu, đã gọi xác minh)" className={`${input} min-w-80 flex-1`} />
+            <button className="rounded bg-amber-600 px-4 py-2 text-white" disabled={owners.length === 0}>Đặt lại mật khẩu chủ</button>
+          </form>
+        </section>
+      )}
 
       <section className={box}>
         <h2 className="font-medium">Hỗ trợ: đăng nhập thay</h2>

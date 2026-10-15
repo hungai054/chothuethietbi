@@ -220,6 +220,40 @@ export async function startImpersonation(pool: Pool, actor: Actor, tenantId: str
   });
 }
 
+/** Chủ cửa hàng của một tenant (để chọn khi cửa hàng có nhiều tài khoản chủ) */
+export async function listTenantOwners(pool: Pool, tenantId: string): Promise<{ email: string; name: string; active: boolean }[]> {
+  return (await pool.query("SELECT email, name, active FROM app_user WHERE tenant_id=$1 AND role='OWNER' ORDER BY created_at", [tenantId])).rows;
+}
+
+/**
+ * Hỗ trợ khách quên mật khẩu: đặt lại mật khẩu CHỦ cửa hàng bằng mật khẩu tạm ngẫu nhiên (trả về MỘT lần), mở lại tài khoản nếu đang bị khóa.
+ * Bắt buộc có lý do; ghi nhật ký quản trị và cả nhật ký của cửa hàng (chủ thấy ai đã đặt lại, vì sao). Không đổi trạng thái cửa hàng.
+ * Cửa hàng có nhiều tài khoản chủ thì phải chỉ rõ email.
+ */
+export async function resetOwnerPassword(pool: Pool, actor: Actor, tenantId: string, input: { reason: string; email?: string }) {
+  const reason = input.reason?.trim() ?? '';
+  if (reason.length < 5) throw new PlatformError('Hãy nhập lý do (ít nhất 5 ký tự), VD: chủ cửa hàng quên mật khẩu, đã xác minh qua điện thoại.');
+  if (reason.length > 300) throw new PlatformError('Lý do tối đa 300 ký tự.');
+  const email = input.email?.trim().toLowerCase() || null;
+  // Tạo băm trước khi mở giao dịch: băm mật khẩu chậm, không nên giữ khóa hàng trong lúc đó
+  const tempPassword = `${randomBytes(15).toString('base64url')}aA1`;
+  const passwordHash = await hashPassword(tempPassword);
+  return tx(pool, async (db) => {
+    const t = (await db.query('SELECT id FROM tenant WHERE id=$1 AND deleted_at IS NULL', [tenantId])).rows[0];
+    if (!t) throw new PlatformError('Không tìm thấy khách hàng (hoặc đã bị xóa mềm; hãy khôi phục trước).');
+    const owners = (await db.query("SELECT id, email, active FROM app_user WHERE tenant_id=$1 AND role='OWNER' AND ($2::text IS NULL OR email=$2) ORDER BY created_at FOR UPDATE", [tenantId, email])).rows as
+      { id: string; email: string; active: boolean }[];
+    if (owners.length === 0) throw new PlatformError(email ? `Cửa hàng không có chủ với email ${email}.` : 'Cửa hàng không có tài khoản chủ.');
+    if (owners.length > 1) throw new PlatformError(`Cửa hàng có ${owners.length} tài khoản chủ (${owners.map((o) => o.email).join(', ')}). Hãy chọn một email.`);
+    const o = owners[0]!;
+    await db.query('UPDATE app_user SET password_hash=$2, active=true WHERE id=$1', [o.id, passwordHash]);
+    await audit(db, actor, 'tenant.owner_password_reset', tenantId, { user: o.email, wasInactive: !o.active }, reason);
+    await db.query(`INSERT INTO audit_log(tenant_id, action, entity, entity_id, data) VALUES ($1,'support.password_reset','app_user',$2,$3)`,
+      [tenantId, o.id, JSON.stringify({ by: actor.email, reason, user: o.email })]);
+    return { email: o.email, tempPassword, wasInactive: !o.active };
+  });
+}
+
 export async function endImpersonation(pool: Pool, actor: Actor, supportAccessId: string) {
   await pool.query('UPDATE support_access SET ended_at = now() WHERE id=$1 AND ended_at IS NULL', [supportAccessId]);
   await audit(pool, actor, 'tenant.impersonate.end', null, { supportAccessId });
