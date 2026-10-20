@@ -15,7 +15,7 @@ Reverse proxy phải chuyển đúng `Host` / `X-Forwarded-Host` (mỗi cửa h�
 
 1. Sao lưu DB (mục 4).
 2. Lấy mã mới, `pnpm install --frozen-lockfile`.
-3. `DATABASE_ADMIN_URL=… pnpm db:migrate` (áp migration mới theo thứ tự, ghi checksum; **không bao giờ sửa migration đã áp**; cập nhật cả gói/cờ tính năng).
+3. `NODE_ENV=production DATABASE_ADMIN_URL=… pnpm db:migrate` (lần đầu cần thêm `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_PASSWORD`, `APP_DB_PASSWORD`, `PLATFORM_DB_PASSWORD`; áp migration mới theo thứ tự, ghi checksum; **không bao giờ sửa migration đã áp**; cập nhật cả gói/cờ tính năng).
 4. Nếu dùng extension: `pnpm ext:sync` rồi `pnpm ext:check` và `pnpm ext:migrate`.
 5. Build và khởi động lại web, admin, worker.
 
@@ -30,6 +30,8 @@ Bắt buộc ở production:
 | `DATABASE_URL` | Kết nối của role `rentpro_app` (web, worker) |
 | `DATABASE_ADMIN_URL` | Migration, seed, sao lưu, worker liệt kê tenant |
 | `DATABASE_PLATFORM_URL` | Kết nối role `rentpro_admin` cho web/admin (đăng ký, thuê bao, cổng quản trị) |
+| `APP_DB_PASSWORD`, `PLATFORM_DB_PASSWORD` | Mật khẩu RIÊNG (≥ 16 ký tự) cho role `rentpro_app` và `rentpro_admin`; `pnpm db:migrate` đặt vào database. Bỏ trống thì role giữ mật khẩu MẶC ĐỊNH công khai (migrate cảnh báo khi `NODE_ENV=production`). Nhớ cập nhật `DATABASE_URL`/`DATABASE_PLATFORM_URL` cho khớp |
+| `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_PASSWORD` | Tài khoản quản trị nền tảng đầu tiên (mật khẩu ≥ 12 ký tự, chữ và số). BẮT BUỘC khi `NODE_ENV=production` hoặc `SEED_DEMO=false`: seed khi đó chỉ tạo gói + tài khoản này, KHÔNG tạo cửa hàng demo, `*@demo.local` hay `admin@rentpro.local` |
 | `AUTH_SECRET` | Ký phiên đăng nhập (cửa hàng) |
 | `ADMIN_SECRET` | Ký phiên cổng quản trị |
 | `MASTER_KEY` | 32 byte base64; mã hóa số giấy tờ, bí mật nhà cung cấp, bí mật webhook. **Mất khóa = mất dữ liệu mã hóa**, giữ bản sao ngoài DB |
@@ -85,7 +87,7 @@ Kết nối DB rỗi bị máy chủ đóng (khởi động lại DB, failover) 
 
 ## 7. Danh sách kiểm tra trước khi mở cho khách thật
 
-- [ ] Đổi mật khẩu role DB và tài khoản seed (`admin@rentpro.local`, `*@demo.local`) hoặc xóa cửa hàng demo.
+- [ ] Đã đặt `APP_DB_PASSWORD` / `PLATFORM_DB_PASSWORD` và seed ở chế độ production (`NODE_ENV=production` hoặc `SEED_DEMO=false` + `PLATFORM_ADMIN_*`); không còn tài khoản `admin@rentpro.local`, `*@demo.local`. Nếu đã nạp dữ liệu mẫu nhầm vào máy chủ thật: xóa cửa hàng demo và tài khoản mẫu, đổi mật khẩu role DB.
 - [ ] `MASTER_KEY`, `AUTH_SECRET`, `ADMIN_SECRET`, `FILE_URL_SECRET`, `SUPPORT_SECRET` đều là giá trị ngẫu nhiên riêng, đã sao lưu an toàn.
 - [ ] HTTPS toàn bộ; cổng quản trị giới hạn IP.
 - [ ] Lịch `db:backup` + `db:backup:verify` chạy và bản sao lưu được đẩy ra ngoài máy.

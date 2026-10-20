@@ -15,8 +15,28 @@ const PRO: FeatureKey[] = [...BASIC, 'booking.timeline', 'maintenance.usage_base
 export const DISABLED_FEATURES: readonly FeatureKey[] = ['notify.sms', 'notify.zalo'];
 const ENT: FeatureKey[] = FEATURE_KEYS.filter((k) => !DISABLED_FEATURES.includes(k));
 
+/**
+ * Chế độ triển khai thật: `NODE_ENV=production` hoặc `SEED_DEMO=false`. KHÔNG tạo cửa hàng demo, tài khoản `*@demo.local` hay đơn mẫu;
+ * tài khoản quản trị nền tảng lấy từ PLATFORM_ADMIN_EMAIL + PLATFORM_ADMIN_PASSWORD (bắt buộc, ít nhất 12 ký tự, không dùng mật khẩu mẫu).
+ */
+export const isProductionSeed = (env: Record<string, string | undefined> = process.env) => env.NODE_ENV === 'production' || env.SEED_DEMO === 'false';
+
+export function platformAdminFromEnv(env: Record<string, string | undefined> = process.env): { email: string; password: string } {
+  const email = env.PLATFORM_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = env.PLATFORM_ADMIN_PASSWORD ?? '';
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error('Triển khai thật cần PLATFORM_ADMIN_EMAIL hợp lệ để tạo tài khoản quản trị đầu tiên.');
+  if (password.length < 12 || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) throw new Error('PLATFORM_ADMIN_PASSWORD phải có ít nhất 12 ký tự, gồm cả chữ và số.');
+  if (password === DEMO_PASSWORD) throw new Error('PLATFORM_ADMIN_PASSWORD không được dùng mật khẩu mẫu.');
+  return { email, password };
+}
+
 /** Seed cố định, chạy lặp lại được (ON CONFLICT). Dùng role quản trị. */
 export async function seed(adminUrl: string): Promise<void> {
+  const production = isProductionSeed();
+  const prodAdmin = production ? platformAdminFromEnv() : null; // báo lỗi sớm, trước khi chạm DB
+  if (!production && !['localhost', '127.0.0.1', '::1', '[::1]'].includes(new URL(adminUrl).hostname)) {
+    console.warn('CẢNH BÁO: đang nạp dữ liệu MẪU (tài khoản *@demo.local, admin@rentpro.local với mật khẩu công khai) vào máy chủ không phải localhost. Triển khai thật hãy đặt NODE_ENV=production hoặc SEED_DEMO=false cùng PLATFORM_ADMIN_EMAIL/PLATFORM_ADMIN_PASSWORD.');
+  }
   const c = new pg.Client({ connectionString: adminUrl });
   await c.connect();
   try {
@@ -34,6 +54,13 @@ export async function seed(adminUrl: string): Promise<void> {
         [code, name, pm, py, JSON.stringify(features), JSON.stringify(limits)],
       );
       planId[code] = r.rows[0].id;
+    }
+    if (prodAdmin) {
+      await c.query(
+        `INSERT INTO platform_user(email,password_hash,role) VALUES ($1,$2,'SUPER_ADMIN') ON CONFLICT (email) DO NOTHING`,
+        [prodAdmin.email, await hashPassword(prodAdmin.password)],
+      );
+      return; // triển khai thật: chỉ gói + tài khoản quản trị, không có dữ liệu mẫu
     }
     const pw = await hashPassword(DEMO_PASSWORD);
     await c.query(
