@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { listInbox } from '@rentpro/db';
 import { requireAppSession } from '@/lib/session';
 import { withService } from '@/lib/service';
+import { CommandPalette } from '@/components/command-palette';
 import { SignOutButton } from '../sign-out-button';
 
 export const dynamic = 'force-dynamic';
@@ -58,8 +59,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           {links.map((l) => <Link key={l.href} href={l.href} className="hover:underline">{l.label}</Link>)}
         </nav>
         <div className="flex items-center gap-3 text-sm">
+          <CommandPalette links={links.map((l) => ({ href: l.href, label: l.label }))} labels={{ model: L.model, unit: L.unit, customer: L.customer, booking: L.booking }} />
           <Link href="/inbox" className="hover:underline" data-testid="inbox-link" aria-label={`Thông báo, ${unread} chưa đọc`}>Thông báo{unread > 0 && <span className="ml-1 rounded-full bg-amber-500 px-1.5 text-xs text-black">{unread}</span>}</Link>
           <span className="opacity-80">{user.name}</span>
+          {!support && <Link href="/account/password" className="hover:underline" data-testid="change-password-link">Đổi mật khẩu</Link>}
           <span style={{ color: b.textOnPrimary }} className="[&_button]:text-inherit"><SignOutButton /></span>
         </div>
       </header>

@@ -20,15 +20,25 @@ async function markOne(id: string) {
 }
 
 /** Trung tâm thông báo trong app: cảnh báo quá hạn, công nợ, hạn mức tin nhắn… */
-export default async function InboxPage() {
-  const { items, unread, tz } = await withService(async (c, s) => ({ ...(await listInbox(c, 50)), tz: s.tenant.timezone }));
+const STEP = 50;
+
+export default async function InboxPage({ searchParams }: { searchParams: Promise<{ show?: string; limit?: string }> }) {
+  const f = await searchParams;
+  const unreadOnly = f.show === 'unread';
+  const limit = Math.min(Math.max(Number(f.limit) || STEP, STEP), 200);
+  const { items, unread, total, tz } = await withService(async (c, s) => ({ ...(await listInbox(c, limit, { unreadOnly })), tz: s.tenant.timezone }));
+  const shown = unreadOnly ? unread : total;
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Thông báo {unread > 0 && <span className="text-base font-normal text-slate-500">({unread} chưa đọc)</span>}</h1>
         {unread > 0 && <form action={markAll}><button className={btnGhost}>Đánh dấu đã đọc tất cả</button></form>}
       </div>
-      {items.length === 0 ? <Empty>Chưa có thông báo nào.</Empty> : (
+      <nav className="flex gap-3 text-sm" aria-label="Lọc thông báo">
+        <Link href="/inbox" className={unreadOnly ? 'underline' : 'font-semibold'} data-testid="inbox-all">Tất cả ({total})</Link>
+        <Link href="/inbox?show=unread" className={unreadOnly ? 'font-semibold' : 'underline'} data-testid="inbox-unread">Chưa đọc ({unread})</Link>
+      </nav>
+      {items.length === 0 ? <Empty>{unreadOnly ? 'Không còn thông báo chưa đọc.' : 'Chưa có thông báo nào.'}</Empty> : (
         <ul className="space-y-2" data-testid="inbox-list">
           {items.map((i) => (
             <li key={i.id} className={`${card} flex items-start justify-between gap-3 ${i.read ? 'opacity-60' : 'border-l-4 border-amber-400'}`}>
@@ -42,6 +52,7 @@ export default async function InboxPage() {
           ))}
         </ul>
       )}
+      {items.length < shown && limit < 200 && <Link className="text-sm underline" href={`/inbox?${unreadOnly ? 'show=unread&' : ''}limit=${limit + STEP}`} data-testid="inbox-more">Xem thêm</Link>}
     </div>
   );
 }

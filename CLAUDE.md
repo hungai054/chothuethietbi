@@ -126,3 +126,53 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 - `ctx.read.query` chỉ SELECT (kiểm tra, LIMIT 5000, timeout 3 giây). Báo cáo extension khóa `ext.<ma>.<khoa>`; trang extension là dữ liệu `ReportResult`, không phải React.
 - Webhook/tích hợp ngoài để Giai đoạn 12. Test E2E không khẳng định số tiền cố định (cấu hình dùng chung của tenant bị z-customization đổi, ví dụ VAT): so sánh với mức nền đo trước.
 - Sửa file qua script `node` heredoc dễ mất dấu `\`: dùng Edit/Write.
+
+## API công khai và webhook (Giai đoạn 12): quy tắc không được phá
+
+- Mô tả endpoint ở MỘT nơi: `API_ENDPOINTS` (`packages/core/src/api/openapi.ts`). Thêm endpoint = thêm mô tả + một handler cùng `id` trong `apps/web/src/lib/api-v1.ts` (route catch-all `/api/v1/[...path]`); OpenAPI tự sinh ở `/api/v1/openapi.json`.
+- Khóa API chạy với quyền HẸP (`SCOPE_PERMISSIONS`), không bao giờ có quyền giấy tờ, tiền cọc, cài đặt. Thêm phạm vi hoặc dịch vụ mới dùng thêm quyền nội bộ thì phải cập nhật bảng này (ví dụ tạo đơn cần `pricing.view` vì tính báo giá). Quyền thiếu hiện ra là 403 "Bạn không có quyền" khi chạy E2E `z-api.spec.ts`.
+- Giờ trong API luôn ISO 8601 KÈM múi giờ (từ chối chuỗi không có offset). Đơn QUOTE không giữ chỗ, nên chỉ HOLD/CONFIRMED mới bị chặn vì hết tồn kho.
+- Khóa/bí mật webhook hiện MỘT lần qua server action trả về client (`useActionState`), không đưa lên URL. `WEBHOOK_ALLOW_PRIVATE=true` (chỉ dev) cho phép http/địa chỉ nội bộ, web và worker dùng chung biến này.
+- Chạy E2E trong máy không có Chrome: dùng Node 20 (`/opt/node20/bin`; Playwright + Node 22 lỗi "module not been linked" khi nạp exceljs), cần `AUTH_SECRET`, và trỏ `executablePath` tới Chromium có sẵn bằng một config tạm (đừng commit).
+
+## Tìm nhanh Ctrl+K (Giai đoạn 13): quy tắc không được phá
+
+- `globalSearch` (`packages/db/src/search.ts`) chỉ GỌI LẠI các service danh sách (`listModels/listUnits/listCustomers/listBookings`), không viết SQL riêng; mỗi nhóm chỉ chạy khi có quyền xem và gói bật tính năng, nhóm không đủ điều kiện trả rỗng (không báo lỗi). Thêm loại kết quả mới = thêm nhóm ở đây + test quyền/tính năng/cô lập.
+- Kết quả khách chỉ hiện 4 số cuối điện thoại. Từ khóa dưới 2 ký tự trả rỗng, trên 80 ký tự báo lỗi. Các service danh sách chưa thoát ký tự `%` `_` của LIKE (chỉ ảnh hưởng dữ liệu của chính cửa hàng).
+- Danh sách "Đi tới" lấy từ chính menu đã lọc quyền/gói ở `(app)/layout.tsx`; thêm mục menu thì palette tự có. Giao diện ở `components/command-palette.tsx`, API ở `/api/search` (cần đăng nhập, `no-store`).
+
+## Hoàn thiện (Giai đoạn 13): quy tắc không được phá
+
+- **Nhật ký thao tác** (`packages/db/src/audit-view.ts`, `/settings/audit`): chỉ ĐỌC `audit_log` (bảng chỉ thêm). Cần `audit.view` + tính năng `audit.log`; xuất CSV cần thêm `data.export` và tự ghi `audit.export`. CSV qua `toCsv` (thêm nháy trước ô bắt đầu `= + - @`, có BOM). Lọc ngày theo múi giờ cửa hàng. Mọi thao tác ghi mới đều phải gọi `audit(...)` để hiện ở đây.
+- **Thông báo trong app** (`listInbox`): `unread`/`total` đếm trên TOÀN BỘ thông báo nhìn thấy được, không bị cắt theo `limit`; trạng thái đọc theo từng người (`read_by`).
+- **Sentry không SDK** (`packages/core/src/observability/sentry.ts`): bật bằng `SENTRY_DSN`. `instrumentation.ts` của web/admin chỉ nạp `instrumentation-node.ts` khi `NEXT_RUNTIME === 'nodejs'` và import qua `@rentpro/core/sentry` (không import `@rentpro/core` gốc: kéo `node:crypto` vào bản Edge làm hỏng build). Thêm khóa nhạy cảm mới vào regex `SENSITIVE_KEY` (scrub dữ liệu trước khi gửi).
+- **Pool Postgres** (`createPool`) có handler `error`: kết nối rỗi bị đóng không được làm sập tiến trình. Đừng tạo `new pg.Pool` trực tiếp trong mã ứng dụng.
+- **Sao lưu** (`packages/db/src/backup-cli.ts`): `pnpm db:backup` / `db:backup:verify`. Logic đặt tên/dọn ở `packages/core/src/ops/backup.ts` (không bao giờ xóa tệp lạ, luôn giữ ≥ 1 bản). Ảnh (`STORAGE_DIR`) và `MASTER_KEY` sao lưu riêng (xem `docs/VAN_HANH.md`).
+- **Seed demo** gồm đơn mẫu (`seed-activity.ts`) tạo qua service nghiệp vụ, chỉ khi demo chưa có đơn nào. Không viết SQL thẳng vào bảng `booking`/`unit_allocation` trong seed.
+- **E2E**: spec cần tenant gói cao hơn thì tạo tenant MỚI (như `z-api`, `z-audit`, `z-search`) hoặc bật ghi đè cờ (như `z-customization`, nay có cả `api`). Thêm mục mới vào trung tâm cài đặt có `locked` theo gói thì nhớ cập nhật `z-customization.spec.ts`. Worker E2E (`pnpm --filter @rentpro/worker once`) cần `.env` ở gốc và `apps/*/.env.local` (có thể rỗng); trang đăng ký cần `DATABASE_PLATFORM_URL`.
+
+## Tính năng đang tắt (đơn giản hóa)
+
+- `DISABLED_FEATURES` trong `packages/db/src/seed.ts` liệt kê cờ tắt ở MỌI gói (hiện: `notify.sms`, `notify.zalo`). Tắt = mã, dữ liệu, test giữ nguyên; menu/trang/dịch vụ tự ẩn theo cờ. Bật lại: xóa khỏi danh sách rồi `pnpm db:migrate`, hoặc ghi đè cờ cho một cửa hàng ở cổng quản trị. Cửa hàng đã có ghi đè bật riêng vẫn dùng được.
+- Test dịch vụ chạy với MỌI cờ bật (`runAs`), nên không đổi; E2E cần kênh tắt thì bật bằng `setFeatureOverrides` cho tenant của spec (như `notifications.spec.ts`). `setFeatureOverrides` THAY THẾ cả bộ ghi đè, không gộp.
+
+## Dòng thiết bị trong đơn thuê
+
+- Form tạo đơn (`bookings/new`) dùng `components/booking-lines.tsx` (client): mặc định 4 dòng, nút "Thêm dòng" đến `MAX_BOOKING_LINES` (20, ở `lib/booking-limits.ts`). Service `createBooking` chặn trên 50 dòng (`MAX_BOOKING_LINES` trong `packages/db/src/booking.ts`) để chống đầu vào bất thường qua API.
+- Hằng số dùng chung giữa server component và client component phải nằm ở module thường, KHÔNG export từ file `'use client'` (server nhận tham chiếu thay vì giá trị, vòng lặp `i <= MAX` âm thầm không chạy).
+
+## Đặt lại mật khẩu chủ cửa hàng
+
+- Một hàm duy nhất `resetOwnerPassword` (`packages/db/src/platform.ts`) cho cả nút ở cổng quản trị (quyền `tenant.reset_password`: SUPER_ADMIN, SUPPORT) và CLI `pnpm db:reset-password <slug> [email]`. Lý do bắt buộc; mật khẩu tạm không bao giờ vào URL, `platform_audit` hay `audit_log` (chỉ hiện một lần qua cookie flash 30 giây); ghi cả nhật ký của cửa hàng (`support.password_reset`). Chưa có "Quên mật khẩu" tự phục vụ qua email.
+
+## Buộc đổi mật khẩu
+
+- Cột `app_user.must_change_password` (migration 0013). Bật khi mật khẩu bị đặt HỘ: `resetOwnerPassword` (quản trị) và `setUserPassword` cho người KHÁC; tự đặt cho mình thì không. KHÔNG bật ở `createUser` hay tạo cửa hàng (E2E và quy trình hiện có phụ thuộc đăng nhập ngay). Tắt khi người dùng tự đổi bằng `changeOwnPassword` (cần mật khẩu hiện tại, mạnh, khác cũ; chặn dò 5 lần sai/15 phút/người dùng trong bộ nhớ tiến trình; đổi được cả khi cửa hàng chỉ đọc).
+- Cưỡng chế ở `requireAppSession` (mọi trang trong `(app)` và mọi `withService` đều đi qua nó, kể cả server action và route như `/api/search`): chuyển hướng tới `/account/password`. Trang đó nằm NGOÀI nhóm `(app)` và gọi `withService(..., { allowMustChange: true })`, là chỗ DUY NHẤT bỏ qua cưỡng chế. Thêm trang/route mới đừng tự đọc `getAppSession()` rồi bỏ qua `requireAppSession`/`withService` nếu cần chặn người bị buộc đổi.
+- Chưa vô hiệu hóa các phiên (JWT) đang mở khi mật khẩu đổi; phiên hết hạn sau 12 giờ.
+
+## Kho công khai (MIT)
+
+- Dự án công khai: mọi giá trị mặc định trong mã (mật khẩu role `rentpro_app`/`rentpro_admin` trong migration 0001/0002, `Demo@12345678`) là CÔNG KHAI. Triển khai thật dùng `APP_DB_PASSWORD`/`PLATFORM_DB_PASSWORD` (`applyRolePasswords` trong `migrate.ts`, chạy cuối mỗi lần migrate) và seed production (`isProductionSeed`: `NODE_ENV=production` hoặc `SEED_DEMO=false` + `PLATFORM_ADMIN_EMAIL/PASSWORD`, không có dữ liệu mẫu). KHÔNG sửa migration cũ để đổi mật khẩu mặc định (đã áp dụng ở nơi khác).
+- Test không được đổi mật khẩu của role `rentpro_app`/`rentpro_admin` (role là của cả máy chủ, các file test chạy song song dùng chung): thử `setRolePasswords` trên role tạm riêng. Máy thử dùng xác thực `trust` thì không kiểm được đăng nhập sai mật khẩu, nên so băm trong `pg_authid`.
+- Không đưa bí mật thật, `.env`, dữ liệu khách vào kho, issue hay PR. Khóa trong CI/E2E chỉ dành cho kiểm thử. Báo lỗ hổng riêng tư (SECURITY.md).

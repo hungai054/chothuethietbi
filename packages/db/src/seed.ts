@@ -1,16 +1,42 @@
 import pg from 'pg';
 import { hashPassword } from '@rentpro/core';
 import { FEATURE_KEYS, type FeatureKey } from '@rentpro/tenancy';
+import { seedDemoActivity } from './seed-activity';
 
 export const DEMO_PASSWORD = 'Demo@12345678';
 
 const only = (keys: FeatureKey[]) => Object.fromEntries(keys.map((k) => [k, true]));
-const BASIC: FeatureKey[] = ['inventory', 'customers', 'inventory.barcode', 'inventory.stocktake', 'booking', 'contract', 'deposit', 'pricing', 'payments', 'notify.email', 'maintenance', 'reports.basic'];
-const PRO: FeatureKey[] = [...BASIC, 'booking.timeline', 'notify.sms', 'notify.zalo', 'maintenance.usage_based', 'reports.advanced', 'reports.roi', 'custom_fields', 'multi_branch', 'contract.e_signature'];
-const ENT: FeatureKey[] = [...FEATURE_KEYS];
+const BASIC: FeatureKey[] = ['inventory', 'customers', 'inventory.barcode', 'inventory.stocktake', 'booking', 'contract', 'deposit', 'pricing', 'payments', 'notify.email', 'maintenance', 'reports.basic', 'audit.log'];
+const PRO: FeatureKey[] = [...BASIC, 'booking.timeline', 'maintenance.usage_based', 'reports.advanced', 'reports.roi', 'custom_fields', 'multi_branch', 'contract.e_signature'];
+/**
+ * Tính năng đang TẮT ở mọi gói để đơn giản hóa sản phẩm (mã, dữ liệu và test vẫn giữ nguyên, bật lại bằng cách xóa khỏi danh sách này rồi chạy
+ * `pnpm db:migrate`; hoặc bật riêng cho một cửa hàng bằng ghi đè cờ ở cổng quản trị). Menu, trang cài đặt, dịch vụ và hàng đợi gửi đều tự theo cờ.
+ */
+export const DISABLED_FEATURES: readonly FeatureKey[] = ['notify.sms', 'notify.zalo'];
+const ENT: FeatureKey[] = FEATURE_KEYS.filter((k) => !DISABLED_FEATURES.includes(k));
+
+/**
+ * Chế độ triển khai thật: `NODE_ENV=production` hoặc `SEED_DEMO=false`. KHÔNG tạo cửa hàng demo, tài khoản `*@demo.local` hay đơn mẫu;
+ * tài khoản quản trị nền tảng lấy từ PLATFORM_ADMIN_EMAIL + PLATFORM_ADMIN_PASSWORD (bắt buộc, ít nhất 12 ký tự, không dùng mật khẩu mẫu).
+ */
+export const isProductionSeed = (env: Record<string, string | undefined> = process.env) => env.NODE_ENV === 'production' || env.SEED_DEMO === 'false';
+
+export function platformAdminFromEnv(env: Record<string, string | undefined> = process.env): { email: string; password: string } {
+  const email = env.PLATFORM_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = env.PLATFORM_ADMIN_PASSWORD ?? '';
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error('Triển khai thật cần PLATFORM_ADMIN_EMAIL hợp lệ để tạo tài khoản quản trị đầu tiên.');
+  if (password.length < 12 || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) throw new Error('PLATFORM_ADMIN_PASSWORD phải có ít nhất 12 ký tự, gồm cả chữ và số.');
+  if (password === DEMO_PASSWORD) throw new Error('PLATFORM_ADMIN_PASSWORD không được dùng mật khẩu mẫu.');
+  return { email, password };
+}
 
 /** Seed cố định, chạy lặp lại được (ON CONFLICT). Dùng role quản trị. */
 export async function seed(adminUrl: string): Promise<void> {
+  const production = isProductionSeed();
+  const prodAdmin = production ? platformAdminFromEnv() : null; // báo lỗi sớm, trước khi chạm DB
+  if (!production && !['localhost', '127.0.0.1', '::1', '[::1]'].includes(new URL(adminUrl).hostname)) {
+    console.warn('CẢNH BÁO: đang nạp dữ liệu MẪU (tài khoản *@demo.local, admin@rentpro.local với mật khẩu công khai) vào máy chủ không phải localhost. Triển khai thật hãy đặt NODE_ENV=production hoặc SEED_DEMO=false cùng PLATFORM_ADMIN_EMAIL/PLATFORM_ADMIN_PASSWORD.');
+  }
   const c = new pg.Client({ connectionString: adminUrl });
   await c.connect();
   try {
@@ -28,6 +54,13 @@ export async function seed(adminUrl: string): Promise<void> {
         [code, name, pm, py, JSON.stringify(features), JSON.stringify(limits)],
       );
       planId[code] = r.rows[0].id;
+    }
+    if (prodAdmin) {
+      await c.query(
+        `INSERT INTO platform_user(email,password_hash,role) VALUES ($1,$2,'SUPER_ADMIN') ON CONFLICT (email) DO NOTHING`,
+        [prodAdmin.email, await hashPassword(prodAdmin.password)],
+      );
+      return; // triển khai thật: chỉ gói + tài khoản quản trị, không có dữ liệu mẫu
     }
     const pw = await hashPassword(DEMO_PASSWORD);
     await c.query(
@@ -49,6 +82,13 @@ export async function seed(adminUrl: string): Promise<void> {
     await seedDemoData(c, tenantId);
   } finally {
     await c.end();
+  }
+  // Đơn mẫu đi qua service nghiệp vụ; lỗi ở đây không được làm hỏng bước seed nền
+  try {
+    const n = await seedDemoActivity(adminUrl);
+    if (n) console.log(`seed: đã tạo ${n} đơn mẫu cho cửa hàng demo`);
+  } catch (e) {
+    console.warn('seed: bỏ qua đơn mẫu:', e instanceof Error ? e.message : e);
   }
 }
 

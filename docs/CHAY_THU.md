@@ -57,7 +57,7 @@ Mật khẩu chung: `Demo@12345678`
 | Nhân viên quầy | `staff@demo.local` | Khách, bảng giá (chỉ xem); không xem được số và ảnh giấy tờ |
 | Kỹ thuật | `technician@demo.local` | Thiết bị, kiểm kê; không thấy Khách hàng / Bảng giá |
 
-Dữ liệu mẫu: 5 mẫu thiết bị, 22 thiết bị (mã `CAM-000001`…), bảng giá, 5 khách (2 khách thuộc nhóm "Đối tác" giảm 10%).
+Dữ liệu mẫu: 5 mẫu thiết bị, 22 thiết bị (mã `CAM-000001`…), bảng giá, 5 khách (2 khách thuộc nhóm "Đối tác" giảm 10%) và 5 đơn thuê sắp tới (3 đã xác nhận, 1 giữ chỗ, 1 báo giá; 2 đơn có tiền cọc) để lịch, báo cáo, công nợ và nhật ký có dữ liệu ngay. Thử nhanh: nhấn **Ctrl+K** rồi gõ "Sony", "Nguyễn" hoặc "DT-"; vào **Cài đặt → Nhật ký thao tác** (đăng nhập chủ/quản lý) để xem các thao tác vừa tạo.
 
 ### Gợi ý thử theo thứ tự
 1. **Thiết bị** → xem danh sách, lọc theo trạng thái, bấm một mã để đổi sang *Bảo trì* (bắt buộc lý do), xem lịch sử.

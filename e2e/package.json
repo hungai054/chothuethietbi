@@ -7,7 +7,7 @@
     "build": "echo skip",
     "typecheck": "tsc --noEmit",
     "lint": "echo skip",
-    "test": "echo skip (chạy: pnpm e2e)",
+    "test": "echo \"skip - chay: pnpm e2e\"",
     "e2e": "playwright test"
   },
   "devDependencies": {

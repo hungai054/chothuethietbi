@@ -21,7 +21,7 @@ export const SCOPE_PERMISSIONS: Record<ApiScope, readonly Permission[]> = {
   'customers:read': ['customer.view'],
   'customers:write': ['customer.view', 'customer.manage'],
   'bookings:read': ['booking.view'],
-  'bookings:write': ['booking.view', 'booking.create', 'customer.view'],
+  'bookings:write': ['booking.view', 'booking.create', 'customer.view', 'pricing.view'],
   'availability:read': ['booking.view', 'inventory.view'],
 };
 

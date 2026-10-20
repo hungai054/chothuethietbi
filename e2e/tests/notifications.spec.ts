@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
-import { createPool } from '@rentpro/db';
+import { createPool, setFeatureOverrides } from '@rentpro/db';
 import { E2E_PASSWORD } from '../global-setup';
 import { pageFetch } from './helpers';
 
@@ -14,6 +14,13 @@ const DAY = 2 + (SUFFIX % 8);
 const win = (n: number) => ({ start: `2028-01-${String(DAY + n * 3).padStart(2, '0')}T08:00`, end: `2028-01-${String(DAY + n * 3 + 1).padStart(2, '0')}T08:00` });
 const ROOT = resolve(process.cwd(), '..'); // Playwright chạy với cwd = thư mục e2e
 const db = () => createPool(process.env.E2E_DB_PLATFORM_URL ?? 'postgresql://rentpro_admin:rentpro_admin@localhost:5433/rentpro');
+
+// SMS/Zalo đang tắt ở mọi gói (DISABLED_FEATURES trong seed.ts); bộ này kiểm tra luồng gửi nên bật riêng cho tenant E2E bằng ghi đè cờ
+test.beforeAll(async () => {
+  const pool = db();
+  await setFeatureOverrides(pool, { id: '00000000-0000-0000-0000-000000000000', email: 'e2e@rentpro.local' }, process.env.E2E_TENANT_ID!, { 'notify.sms': true, 'notify.zalo': true });
+  await pool.end();
+});
 
 async function login(page: Page, role: 'owner' | 'staff' | 'technician') {
   await page.context().clearCookies();

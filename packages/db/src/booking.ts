@@ -212,6 +212,9 @@ async function allocateQty(ctx: ServiceCtx, bookingId: string, l: LineAlloc, m: 
 }
 
 // ===== Tạo đơn =====
+/** Giới hạn số dòng thiết bị trong một đơn (chặn đầu vào bất thường qua API; giao diện giới hạn thấp hơn) */
+export const MAX_BOOKING_LINES = 50;
+
 export interface BookingLineInput { modelId: string; qty: number; unitId?: string | null }
 export interface CreateBookingInput {
   customerId: string; lines: BookingLineInput[]; start: Date; end: Date;
@@ -224,6 +227,7 @@ export async function createBooking(ctx: ServiceCtx, input: CreateBookingInput):
   if (!['QUOTE', 'HOLD', 'CONFIRMED'].includes(status)) throw new ValidationError('Trạng thái ban đầu không hợp lệ.');
   if (!(input.end.getTime() > input.start.getTime())) throw new ValidationError('Thời gian kết thúc phải sau thời gian bắt đầu.');
   if (input.lines.length === 0) throw new ValidationError('Chưa chọn thiết bị nào.');
+  if (input.lines.length > MAX_BOOKING_LINES) throw new ValidationError(`Một đơn tối đa ${MAX_BOOKING_LINES} dòng thiết bị. Hãy tách thành nhiều đơn.`);
   // Extension có thể từ chối đơn (ExtensionVeto) trước khi ghi bất cứ thứ gì
   await ctx.ext?.beforeBookingCreate({ customerId: input.customerId, start: input.start, end: input.end, status, lines: input.lines.map((l) => ({ modelId: l.modelId, qty: l.qty })), notes: input.notes ?? null });
   const seen = new Set<string>();

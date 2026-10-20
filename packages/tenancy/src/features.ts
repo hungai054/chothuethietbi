@@ -8,7 +8,7 @@ export const FEATURE_KEYS = [
   'maintenance', 'maintenance.usage_based',
   'reports.basic', 'reports.advanced', 'reports.roi',
   'custom_fields', 'custom_roles', 'white_label', 'custom_domain',
-  'extensions', 'api', 'multi_branch',
+  'extensions', 'api', 'multi_branch', 'audit.log',
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
