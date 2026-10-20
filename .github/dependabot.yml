@@ -1,18 +1,14 @@
 version: 2
+# Dự án ở chế độ chỉ công khai (không phát triển thêm): TẮT đề xuất nâng phiên bản định kỳ (open-pull-requests-limit: 0).
+# Cảnh báo và PR cập nhật BẢO MẬT của GitHub (Dependabot security updates) vẫn hoạt động độc lập với cấu hình này.
+# Muốn bật lại cập nhật định kỳ khi phát triển tiếp: đặt lại giới hạn (ví dụ 3) và, nếu muốn tránh bản lớn, thêm
+#   ignore: [{ dependency-name: "*", update-types: ["version-update:semver-major"] }]
 updates:
-  # Thư viện npm: chỉ tự đề xuất bản vá và bản nhỏ (gộp thành một PR). Bản LỚN (TypeScript, ESLint, nodemailer…) có thể làm hỏng dự án nên
-  # nâng thủ công khi cần, kèm chạy đủ test: bỏ khỏi danh sách `ignore` này khi muốn nhận lại.
   - package-ecosystem: npm
     directory: /
-    schedule: { interval: weekly }
-    open-pull-requests-limit: 3
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-    groups:
-      minor-and-patch:
-        update-types: [minor, patch]
-  # GitHub Actions: nhận cả bản lớn (hay là nâng phiên bản Node của action), mỗi PR phải qua CI mới gộp
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 0
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 0

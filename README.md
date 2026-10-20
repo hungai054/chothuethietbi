@@ -2,6 +2,8 @@
 
 SaaS đa khách hàng quản lý cho thuê thiết bị (camera, âm thanh, ánh sáng, dụng cụ…) cho thị trường Việt Nam: tồn kho theo từng chiếc, đặt lịch chống trùng, hợp đồng và tiền cọc, thông báo, bảo trì, báo cáo, tùy biến không-code, extension, API/webhook và thuê bao.
 
+> **Trạng thái dự án: chỉ công khai, không phát triển thêm.** Mã nguồn được chia sẻ nguyên trạng theo giấy phép [MIT](LICENSE): bạn tự do dùng lại, sửa đổi và fork, nhưng **không có cam kết bảo trì, vá lỗi hay hỗ trợ**. Các thư viện được cập nhật bản vá bảo mật lần cuối vào 10/2026; nếu dùng cho mục đích thật, hãy tự kiểm tra và nâng cấp thư viện, và tự đánh giá an toàn trước khi chạy với dữ liệu khách hàng.
+
 > **Cảnh báo bảo mật khi tự triển khai.** Mật khẩu mẫu (`Demo@12345678`, role DB `rentpro_app` / `rentpro_admin`) là công khai vì nằm trong mã nguồn. Trước khi mở ra Internet, hãy đặt mật khẩu riêng cho role DB, bỏ dữ liệu mẫu và đặt các bí mật ngẫu nhiên: xem [SECURITY.md](SECURITY.md) và [docs/VAN_HANH.md](docs/VAN_HANH.md).
 
 | Tài liệu | Dành cho |

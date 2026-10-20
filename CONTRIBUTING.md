@@ -1,5 +1,7 @@
 # Đóng góp cho RentPro
 
+> **Dự án chỉ được công khai, không phát triển thêm.** Pull Request và issue có thể không được xem xét hoặc phản hồi. Bạn được khuyến khích **fork** và phát triển tiếp theo giấy phép MIT. Phần dưới mô tả cách làm việc với mã nguồn nếu bạn fork.
+
 Cảm ơn bạn quan tâm! Trước khi sửa mã, hãy đọc [CLAUDE.md](CLAUDE.md): đó là tập quy ước kiến trúc và các quy tắc "không được phá" (cách ly tenant, đặt lịch, tiền, quyền…) mà mọi thay đổi phải tuân theo.
 
 ## Thiết lập

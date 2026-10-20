@@ -176,3 +176,8 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 - Dự án công khai: mọi giá trị mặc định trong mã (mật khẩu role `rentpro_app`/`rentpro_admin` trong migration 0001/0002, `Demo@12345678`) là CÔNG KHAI. Triển khai thật dùng `APP_DB_PASSWORD`/`PLATFORM_DB_PASSWORD` (`applyRolePasswords` trong `migrate.ts`, chạy cuối mỗi lần migrate) và seed production (`isProductionSeed`: `NODE_ENV=production` hoặc `SEED_DEMO=false` + `PLATFORM_ADMIN_EMAIL/PASSWORD`, không có dữ liệu mẫu). KHÔNG sửa migration cũ để đổi mật khẩu mặc định (đã áp dụng ở nơi khác).
 - Test không được đổi mật khẩu của role `rentpro_app`/`rentpro_admin` (role là của cả máy chủ, các file test chạy song song dùng chung): thử `setRolePasswords` trên role tạm riêng. Máy thử dùng xác thực `trust` thì không kiểm được đăng nhập sai mật khẩu, nên so băm trong `pg_authid`.
 - Không đưa bí mật thật, `.env`, dữ liệu khách vào kho, issue hay PR. Khóa trong CI/E2E chỉ dành cho kiểm thử. Báo lỗ hổng riêng tư (SECURITY.md).
+
+## Trạng thái dự án (10/2026)
+
+- Kho đã công khai (MIT) và **không phát triển thêm**: chỉ giữ để chia sẻ. Dependabot tắt đề xuất định kỳ (`open-pull-requests-limit: 0`), chỉ còn cập nhật bảo mật của GitHub. Đừng thêm tính năng mới hay hứa bảo trì trong tài liệu; nếu sửa gì thì chỉ là lỗi bảo mật.
+- Lần nâng thư viện bảo mật cuối: next-auth beta.32, nodemailer 10, vitest 4, Next.js 15.5.28 (đã chạy đủ test và E2E).

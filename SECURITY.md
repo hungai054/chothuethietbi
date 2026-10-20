@@ -4,7 +4,7 @@
 
 **Đừng mở issue công khai** cho lỗ hổng bảo mật. Hãy dùng **"Report a vulnerability"** ở tab *Security* của kho GitHub này (báo cáo riêng tư). Hãy nêu: phiên bản/commit, các bước tái hiện, ảnh hưởng, và (nếu có) đề xuất sửa.
 
-Chúng tôi cố gắng phản hồi trong vòng 7 ngày và sẽ ghi công người báo (nếu bạn đồng ý) khi đã có bản sửa.
+**Dự án hiện chỉ được công khai, không phát triển thêm.** Báo cáo vẫn được đọc nhưng **không có cam kết thời hạn phản hồi hay phát hành bản vá**; hãy coi đây là phần mềm dùng nguyên trạng. Nếu bạn cần một bản an toàn, hãy fork và tự vá (giấy phép MIT cho phép).
 
 ## Phạm vi
 
