@@ -45,7 +45,7 @@ Thông tin kết nối dev nằm trong `.env`, `apps/*/.env.local` (không commi
 
 - Auth.js và Next dựng URL chuyển hướng từ địa chỉ nội bộ → mất subdomain tenant. Đăng nhập/đăng xuất làm ở client với `redirect:false` rồi `location.assign('/')`; lấy host qua `hostOf()` (ưu tiên `x-forwarded-host`).
 - React xóa ô `<input type=file>` sau mỗi lần gửi form → giữ `File` trong state nếu cần dùng lại.
-- Postgres: `CREATE DATABASE` đồng thời bị chặn; test DB dùng `TEST_PG_SERVER_URL` và đã chịu được chạy song song. Turbo lọc biến môi trường → khai báo trong `turbo.json` (`globalPassThroughEnv`).
+- Postgres: `CREATE DATABASE` đồng thời bị chặn; test DB dùng `TEST_PG_SERVER_URL` và đã chịu được chạy song song. Role `rentpro_app`/`rentpro_admin` là của cả máy chủ: trên máy chủ MỚI (như CI) migration chạy song song sẽ đụng nhau ở `CREATE ROLE`, nên `startTestDb` xếp hàng các lần migrate bằng khóa advisory cho tới khi đủ hai role. Máy phát triển đã có role sẵn nên KHÔNG tái hiện được lỗi này: muốn thử, dựng cụm Postgres mới (`initdb --auth-host=scram-sha-256`) rồi chạy `pnpm --filter @rentpro/db test`. Turbo lọc biến môi trường → khai báo trong `turbo.json` (`globalPassThroughEnv`).
 - `git add -A` đã từng kéo file bộ cài và file mật khẩu vào commit. Luôn `git add` theo đường dẫn cụ thể.
 - Tiền là số nguyên VND. Thời gian lưu UTC, hiển thị và tính ngày lịch theo múi giờ của tenant (`zonedTimeToUtc`).
 - Số giấy tờ tùy thân mã hóa AES-GCM (`MASTER_KEY`), tìm trùng bằng chỉ mục mù HMAC, ảnh ở kho riêng tư truy cập qua URL ký 120 giây và luôn ghi nhật ký. Production bắt buộc `MASTER_KEY`.
