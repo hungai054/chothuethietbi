@@ -76,7 +76,7 @@ Bảng nền tảng (không có `tenant_id`, không RLS, chỉ role admin truy c
 | 12 | Thương mại | landing, đăng ký, onboarding, thuê bao, PayOS/VietQR, read-only, MRR, export/xóa, API + webhook |
 | 13 | Hoàn thiện | audit, Ctrl+K, notification center, Sentry, backup, E2E, seed, docs |
 
-**Trạng thái: giai đoạn 1–13 đã hoàn thành.** Giai đoạn 13 gồm: xem/lọc/xuất nhật ký thao tác (`/settings/audit`), Ctrl+K (`globalSearch`), trung tâm thông báo (đếm chưa đọc toàn bộ, lọc, phân trang), báo lỗi Sentry không cần SDK, sao lưu + kiểm tra khôi phục (`pnpm db:backup`, `db:backup:verify`), đơn mẫu cho cửa hàng demo, E2E (`z-search`, `z-audit`, `z-api`) và bộ tài liệu (README, HUONG_DAN_SU_DUNG, VAN_HANH, API). Chưa làm có chủ ý: PDF sinh ở server (đang dùng In/Lưu PDF của trình duyệt), thử thật các nhà cung cấp Zalo/eSMS/SpeedSMS và PayOS với tài khoản thật, job E2E trên CI.
+**Trạng thái: giai đoạn 1–13 đã hoàn thành; dự án được công khai và không phát triển thêm (xem README).** Giai đoạn 13 gồm: xem/lọc/xuất nhật ký thao tác (`/settings/audit`), Ctrl+K (`globalSearch`), trung tâm thông báo (đếm chưa đọc toàn bộ, lọc, phân trang), báo lỗi Sentry không cần SDK, sao lưu + kiểm tra khôi phục (`pnpm db:backup`, `db:backup:verify`), đơn mẫu cho cửa hàng demo, E2E (`z-search`, `z-audit`, `z-api`) và bộ tài liệu (README, HUONG_DAN_SU_DUNG, VAN_HANH, API). Chưa làm có chủ ý: PDF sinh ở server (đang dùng In/Lưu PDF của trình duyệt), thử thật các nhà cung cấp Zalo/eSMS/SpeedSMS và PayOS với tài khoản thật, job E2E trên CI.
 
 Mỗi giai đoạn kết thúc bằng `typecheck + lint + test` xanh và một commit.
 
