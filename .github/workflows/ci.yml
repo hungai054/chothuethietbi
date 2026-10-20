@@ -35,7 +35,7 @@ jobs:
       MASTER_KEY: cmVudHByby1jaS10ZXN0LWtleS1ub3QtZm9yLXByb2Q=
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
 
